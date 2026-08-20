@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>KESSLERTON ROW</title>
+<meta name="description" content="A first-person narrative horror game. Ashgrove, Pennsylvania. August 24 – December 21, 2014.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Reenie+Beanie&family=Playfair+Display:wght@700;900&family=Lora:ital,wght@0,400;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=UnifrakturMaguntia&family=JetBrains+Mono:wght@400;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link rel="preload" href="./fonts/rainyhearts.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="./fonts/VCR_OSD_MONO.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="./styles/game.css">
+<script type="importmap">
+{
+  "imports": {
+    "three": "./vendor/three/build/three.module.js",
+    "three/addons/": "./vendor/three/examples/jsm/"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+  <canvas id="viewport"></canvas>
+
+  <!-- ============ POST/OVERLAY LAYERS ============ -->
+  <div id="vhs" class="layer hidden" aria-hidden="true"></div>
+  <div id="letterbox" class="layer hidden" aria-hidden="true"><span class="bar top"></span><span class="bar bottom"></span></div>
+  <div id="fade" class="layer" aria-hidden="true"></div>
+
+  <!-- ============ HUD ============ -->
+  <div id="hud" class="layer hidden">
+    <div id="crosshair"><span class="dot"></span><span class="ring"></span></div>
+    <div id="prompt" class="hidden"></div>
+    <div id="carrybar" class="hidden"><span></span></div>
+    <div id="stamina" class="hidden"><span></span></div>
+  </div>
+
+  <!-- ============ SUBTITLES ============ -->
+  <div id="subs" class="layer"><div id="subline" class="hidden"><b class="who"></b><span class="what"></span></div></div>
+
+  <!-- ============ CHOICE ============ -->
+  <div id="choices" class="layer hidden"><div class="wrap"></div></div>
+
+  <!-- ============ PHONE ============ -->
+  <div id="phone" class="layer hidden">
+    <div class="handset">
+      <div class="statusbar"><span class="carrier">Ashgrove Wireless</span><span class="sig"></span><span class="clock">11:47</span><span class="batt"></span></div>
+      <div class="screen"></div>
+      <div class="softkeys"><button data-app="messages">Messages</button><button data-app="notes">Notes</button><button data-app="camera">Camera</button><button data-app="gallery">Gallery</button><button data-app="tapes">Tapes</button></div>
+      <div class="chin"></div>
+    </div>
+  </div>
+
+  <!-- ============ FULLSCREEN DOCUMENT READER ============ -->
+  <div id="reader" class="layer hidden"><div class="sheet"></div><button class="close">Close [Esc]</button></div>
+
+  <!-- ============ TITLE CARD ============ -->
+  <div id="card" class="layer hidden">
+    <div class="ct">
+      <div class="num"></div><div class="name"></div><div class="meta"></div>
+    </div>
+  </div>
+
+  <!-- ============ MENUS ============ -->
+  <div id="menu" class="layer hidden"></div>
+  <div id="toast" class="layer"></div>
+  <noscript><p style="color:#ccc;font:16px system-ui;padding:2rem">KESSLERTON ROW requires JavaScript and WebGL2.</p></noscript>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

@@ -1,0 +1,89 @@
+<!doctype html><html><head><meta charset="utf-8"><title>face preview</title>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/examples/jsm/"}}</script>
+<style>body{margin:0;background:#111;display:flex}canvas{display:block}#tex{image-rendering:pixelated;width:320px;height:320px}</style>
+</head><body>
+<canvas id="v" width="900" height="900"></canvas><canvas id="tex" width="256" height="256"></canvas>
+<script type="module">
+import * as THREE from 'three';
+import { humanoid } from '../src/world/props.js';
+import { faceTex } from '../src/world/mat.js';
+
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('v'), antialias:true });
+renderer.setSize(900,900,false);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a1c22);
+const cam = new THREE.PerspectiveCamera(35, 1, 0.01, 50);
+
+const P = new URLSearchParams(location.search);
+const who = P.get('who') || 'man';
+const CAST = {
+  ost: { height:1.55, skin:0xd8bda6, hair:0xd6d2c8, top:0x7a6b7c, bottom:0x3a3a40, boots:0x2a2a2c,
+    build:1.06, hairLong:false, female:0.85, hairStyle:'bun', age:0.85, glasses:0x4a453c,
+    head:{wide:1.02,jaw:0.88,nose:1.06,chin:0.90,brow:0.8},
+    face:{age:1,iris:0x5c5a4e,lipCol:0x9e716b,eyeW:0.88,eyeGap:0.98,noseW:1.06,mouthW:0.92,lash:0.3,id:'ostrowski'} },
+  recca: { height:1.63, skin:0xe0bda2, hair:0x7c4a2c, top:0x6b5f52, bottom:0x2c3444, boots:0x4a3b2c,
+    build:0.92, hairLong:true, female:1, hairStyle:'wave',
+    head:{wide:0.95,jaw:0.78,nose:0.76,chin:0.94,brow:0.7},
+    face:{iris:0x556a4a,lipCol:0xb4706a,eyeW:1.20,eyeGap:1.02,noseW:0.76,mouthW:0.94,browY:2,lash:1,freck:0.7,id:'recca'} },
+  marta: { height:1.58, skin:0xd6b096, hair:0x4a3b30, top:0x5c4a5e, bottom:0x33363c, boots:0x2a2a2c,
+    build:1.02, hairLong:false, female:0.9, hairStyle:'bob',
+    head:{wide:1.0,jaw:0.86,nose:0.92,chin:0.94},
+    face:{iris:0x4a3826,lipCol:0xa8706a,age:0.45,eyeW:1.06,eyeGap:0.98,lash:0.6,mouthW:1.0,id:'marta'} },
+  victor: { height:1.79, skin:0xc9a184, hair:0x2a231c, top:0x141416, bottom:0x1e1e22, boots:0x1a1a1c,
+    build:1.02, hairLong:false, hairStyle:'crop',
+    head:{wide:0.97,jaw:1.12,nose:1.14,chin:1.16,brow:1.2},
+    face:{iris:0x3a2c1e,lipCol:0x9c6154,stubble:0.7,eyeGap:0.95,eyeW:0.94,noseW:1.10,browY:-2,id:'victor'} },
+  dale: { height:1.76, skin:0xd0a888, hair:0xcfcac0, top:0xe8e4d8, bottom:0x3a3a40, boots:0x2a2a2c,
+    build:1.2, hairLong:false, age:0.5, hairStyle:'short',
+    head:{wide:1.07,jaw:1.16,nose:1.30,chin:1.0,brow:1.3},
+    face:{age:0.8,stubble:0.5,iris:0x51534a,eyeW:0.88,eyeGap:1.05,noseW:1.25,mouthW:1.06,id:'dale'} }
+};
+const forced = CAST[who] || null;
+const opts = forced ? forced : who === 'ost'
+  ? { height:1.55, skin:0xd8bda6, hair:0xcfcac0, top:0x7a6b7c, bottom:0x3a3a40, boots:0x2a2a2c, build:1.08,
+      hairLong:false, age:0.85, bun:true, glasses:0x3a3630, face:{ age:1, lipCol:0x9c6a63, brow:1 } }
+  : { height:1.68, skin:0xcaa286, hair:0x6a5a4a, top:0x4a5a6a, bottom:0x2f3540, build:1.0, hairLong:false,
+      face:{ stubble:0.9 } };
+const p = humanoid(opts);
+scene.add(p.g);
+
+scene.add(new THREE.HemisphereLight(0x8899bb, 0x241d18, 0.55));
+const key = new THREE.DirectionalLight(0xffe6c8, 1.5); key.position.set(1.4, 2.2, 2.0); scene.add(key);
+const fill = new THREE.DirectionalLight(0x6a86b0, 0.5); fill.position.set(-2, 0.6, 1.2); scene.add(fill);
+
+const mode = P.get('mode') || 'head';
+if (mode === 'vm' || mode === 'vmlegs') {
+  const { ViewModel } = await import('../src/core/viewmodel.js');
+  scene.remove(p.g);
+  const vm = new ViewModel(scene);
+  const down = mode === 'vmlegs';
+  cam.fov = 68; cam.position.set(0, 1.6, 0);
+  cam.rotation.set(down ? -1.35 : -0.12, 0, 0);
+  cam.updateProjectionMatrix(); cam.updateMatrixWorld();
+  const player = {
+    vel: { x: P.get('walk') ? 1.6 : 0, z: 0 }, bobPhase: 1.1, pitch: down ? -1.35 : -0.12,
+    yaw: 0, frozen: false, crouching: false, flashOn: P.get('torch') === '1',
+    carrying: P.get('carry') === '1' ? { heavy: false } : null
+  };
+  for (let i = 0; i < 90; i++) vm.update(1 / 60, player, cam, { playing: true });
+  const grid = new THREE.Mesh(new THREE.PlaneGeometry(8, 8),
+    new THREE.MeshStandardMaterial({ color: 0x3a3a3c, roughness: 1 }));
+  grid.rotation.x = -Math.PI / 2; scene.add(grid);
+  renderer.render(scene, cam);
+  document.title = 'ready';
+} else {
+const hp = new THREE.Vector3(); p.headG.getWorldPosition(hp);
+if (mode === 'hand') {
+  const q = new THREE.Vector3(); p.arms[1].hand.getWorldPosition(q);
+  cam.position.set(q.x + 0.12, q.y + 0.10, q.z + 0.30); cam.lookAt(q.x, q.y - 0.03, q.z);
+}
+else if (mode === 'head') { cam.position.set(0.10, hp.y + 0.03, 0.60); cam.lookAt(0, hp.y, 0); }
+else { cam.position.set(0.55, hp.y * 0.72, 2.25); cam.lookAt(0, hp.y * 0.62, 0); }
+if (P.get('nm') === '0') p.face.mat.normalMap = null, p.face.mat.needsUpdate = true;
+if (P.get('nomap') === '1') { p.face.mat.map = null; p.face.mat.color.setHex(opts.skin); p.face.mat.needsUpdate = true; }
+renderer.render(scene, cam);
+// the flat texture, so the painting can be judged on its own
+const t = faceTex(opts.face ? { skin:opts.skin, hair:opts.hair, ...opts.face } : {});
+document.getElementById('tex').getContext('2d').drawImage(t.userData.canvas, 0, 0);
+document.title = 'ready';
+}
+</script></body></html>

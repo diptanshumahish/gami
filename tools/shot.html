@@ -1,0 +1,76 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Ridge Road, held</title>
+<!--
+  A held shot of Ridge Road with the real renderer, the real post stack
+  and the real world builders, driven entirely off the query string, so
+  the street can be looked at from a fixed camera without playing four
+  minutes of Chapter One to get there.
+
+    ?cx=&cy=&cz=          camera, metres. Default: the middle of the road
+    ?yaw=&pitch=          degrees. yaw -90 looks down the street, east
+    ?fov=                 degrees, overriding the setting
+    ?fog=                 FogExp2 density, for seeing what the haze hides
+    ?night=1&snow=1       Chapter Two's light rig, and Chapter Three's weather
+    ?open=1               unlock and light the two shops in the row opposite,
+                          the way Chapter Three has them
+    ?sky=&grade=          a sky preset and a colour grade by name
+    ?frames=              frames to settle before the shot is taken, which
+                          is how you catch the traffic and the walkers
+                          somewhere other than where they start
+
+  `window.__ready` goes true once it has settled and timed 120 frames;
+  `window.__ms` is the mean frame time over those.
+-->
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<canvas id="viewport"></canvas>
+<script type="importmap">{"imports":{"three":"../vendor/three/build/three.module.js","three/addons/":"../vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Renderer } from '../src/core/render.js';
+import { World } from '../src/world/world.js';
+import { buildRidgeBlock } from '../src/world/loc_street.js';
+import { buildSky } from '../src/world/sky.js';
+
+const P = new URLSearchParams(location.search);
+const num = (k, d) => P.has(k) ? parseFloat(P.get(k)) : d;
+const on = (k) => parseFloat(P.get(k) || 0) === 1;
+
+const renderer = new Renderer(document.getElementById('viewport'));
+const world = new World(renderer.scene);
+renderer.setGrade(P.get('grade') || 'autumn');
+
+const night = on('night'), snow = on('snow');
+const sky = buildSky(world, {
+  preset: P.get('sky') || (night ? 'night' : 'afternoon'),
+  camera: renderer.camera, fogDensity: num('fog', night ? 0.0095 : 0.0060)
+});
+buildRidgeBlock(world, { x: 0, y: 0, z: 0, night, snow, winter: snow, shopsOpen: on('open') });
+if (night) {
+  world.hemi(0x51709a, 0x181209, 1.15);
+  world.sun([0.35, -0.62, -0.70], 0xA9C0E4, 2.2);
+} else {
+  world.hemi(0x8b9aa8, 0x453d31, 1.75);
+  world.sun([-0.275, -0.40, -0.45], 0xE8CBA4, 1.1);
+}
+
+const cam = renderer.camera;
+cam.fov = num('fov', cam.fov); cam.updateProjectionMatrix();
+cam.position.set(num('cx', 0), num('cy', 1.72), num('cz', 16.2));
+cam.rotation.order = 'YXZ';
+cam.rotation.set(num('pitch', 0) * Math.PI / 180, num('yaw', -90) * Math.PI / 180, 0);
+
+const SETTLE = Math.round(num('frames', 12));
+let n = 0, t0 = 0;
+function loop() {
+  requestAnimationFrame(loop);
+  const dt = 1 / 60;
+  world.update(dt, { camera: cam });
+  sky?.update?.(dt);
+  renderer.render(dt);
+  n++;
+  if (n === SETTLE) t0 = performance.now();
+  if (n === SETTLE + 120) { window.__ms = (performance.now() - t0) / 120; window.__ready = true; }
+}
+loop();
+</script>
