@@ -19,7 +19,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { flat } from './mat.js';
-import { SCALE, BOX, CYL, SPH } from './world.js';
+import { SHAPE, SCALE, BOX, CYL, SPH } from './world.js';
 import { audio } from '../core/audio.js';
 import { UI } from '../core/ui.js';
 
@@ -68,12 +68,12 @@ export function makeDoor(world, {
   const jw = SCALE.jamb, jd = wallThick + 0.012;
   if (frame) {
     [-1, 1].forEach(s => {
-      const jamb = new THREE.Mesh(new THREE.BoxGeometry(jw, h + jw, jd), trimMat);
+      const jamb = new THREE.Mesh(SHAPE.Box(jw, h + jw, jd), trimMat);
       jamb.position.set(s * (w / 2 + jw / 2), (h + jw) / 2, 0);
       jamb.castShadow = true; jamb.receiveShadow = true;
       g.add(jamb);
     });
-    const head = new THREE.Mesh(new THREE.BoxGeometry(w + jw * 2, jw, jd), trimMat);
+    const head = new THREE.Mesh(SHAPE.Box(w + jw * 2, jw, jd), trimMat);
     head.position.set(0, h + jw / 2, 0);
     head.castShadow = true; head.receiveShadow = true;
     g.add(head);
@@ -84,17 +84,17 @@ export function makeDoor(world, {
     [-1, 1].forEach(f => {
       const zc = f * (jd / 2 + cd / 2);
       [-1, 1].forEach(s => {
-        const b = new THREE.Mesh(new THREE.BoxGeometry(cw, h + jw + cw, cd), trimMat);
+        const b = new THREE.Mesh(SHAPE.Box(cw, h + jw + cw, cd), trimMat);
         b.position.set(s * (w / 2 + jw + cw / 2), (h + jw + cw) / 2, zc);
         b.castShadow = true; g.add(b);
       });
-      const t = new THREE.Mesh(new THREE.BoxGeometry(w + (jw + cw) * 2, cw, cd), trimMat);
+      const t = new THREE.Mesh(SHAPE.Box(w + (jw + cw) * 2, cw, cd), trimMat);
       t.position.set(0, h + jw + cw / 2, zc);
       t.castShadow = true; g.add(t);
     });
   }
   if (threshold) {
-    const sill = new THREE.Mesh(new THREE.BoxGeometry(w + jw * 2, 0.028, jd + 0.05), flat(0x6a4a30, { rough: .6 }));
+    const sill = new THREE.Mesh(SHAPE.Box(w + jw * 2, 0.028, jd + 0.05), flat(0x6a4a30, { rough: .6 }));
     sill.position.set(0, 0.014, 0);
     sill.receiveShadow = true; g.add(sill);
   }
@@ -109,7 +109,7 @@ export function makeDoor(world, {
   pivot.add(leaf);
 
   const slabW = w - 0.014, slabH = h - 0.012;
-  const slab = new THREE.Mesh(new THREE.BoxGeometry(slabW, slabH, thick), leafMat);
+  const slab = new THREE.Mesh(SHAPE.Box(slabW, slabH, thick), leafMat);
   slab.position.y = slabH / 2 + 0.006;
   slab.castShadow = true; slab.receiveShadow = true;
   leaf.add(slab);
@@ -127,7 +127,7 @@ export function makeDoor(world, {
     rects.forEach(([px, py, pw, ph]) => {
       if (pw <= 0.02 || ph <= 0.02) return;
       [-1, 1].forEach(f => {
-        const panel = new THREE.Mesh(new THREE.BoxGeometry(pw, ph, 0.012), pm);
+        const panel = new THREE.Mesh(SHAPE.Box(pw, ph, 0.012), pm);
         panel.position.set(-slabW / 2 + px + pw / 2, 0.006 + py + ph / 2, f * (thick / 2 + 0.004));
         panel.castShadow = true; panel.receiveShadow = true;
         leaf.add(panel);
@@ -138,7 +138,7 @@ export function makeDoor(world, {
     // an upper light, for shopfronts and back doors
     const gw = slabW - 0.2, gh = glass > 1 ? slabH * 0.46 : slabH * 0.3;
     const gy = 0.006 + slabH - gh / 2 - 0.16;
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(gw, gh), new THREE.MeshPhysicalMaterial({
+    const pane = new THREE.Mesh(SHAPE.Plane(gw, gh), new THREE.MeshPhysicalMaterial({
       color: 0x2a3a48, roughness: .07, transmission: .55, transparent: true, opacity: .42, side: THREE.DoubleSide
     }));
     pane.position.set(0, gy, thick / 2 + 0.003);
@@ -169,7 +169,7 @@ export function makeDoor(world, {
         arm.position.set(hx + hs * 0.05, hy - 0.012, f * (thick / 2 + 0.05));
         leaf.add(stem, arm);
       } else if (hardware === 'ring') {
-        const ring = new THREE.Mesh(new THREE.TorusGeometry(0.075, 0.014, 6, 16), metalMat);
+        const ring = new THREE.Mesh(SHAPE.Torus(0.075, 0.014, 6, 16), metalMat);
         ring.position.set(hx, hy - 0.08, f * (thick / 2 + 0.01));
         leaf.add(ring);
       } else if (hardware === 'bar') {

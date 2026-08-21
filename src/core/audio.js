@@ -512,17 +512,101 @@ export class AudioEngine {
     }, { vol: 1 });
   }
 
+  /**
+   * Inside the car, engine running. Four layers, every one of them
+   * driven from setCarSpeed(): the block through the firewall (two
+   * saws on the firing frequency and a sub under them), the exhaust
+   * growl that only comes up under the throttle, the tyres on the
+   * tarmac (brown noise that opens up with speed) and the hiss of
+   * the tread on top of that. At a standstill it is an idle and a
+   * heater fan; flat out it is a 1990 Volvo.
+   */
   carInterior() {
     return this.loop('car', out => {
-      const n = this.src(this.noise.brown, { loop: true, rate: 0.8 });
-      const f = this.filter('lowpass', 170, 1.4);
-      const g = this.gain(0.16);
-      n.connect(f).connect(g).connect(out);
-      const e1 = this.osc('sawtooth', 44), ef = this.filter('lowpass', 130, 4), eg = this.gain(0.05);
-      e1.connect(ef).connect(eg).connect(out);
-      n.start(); e1.start();
-      return () => { try { n.stop(); e1.stop(); } catch {} };
+      const C = this._car = {};
+      const f0 = 27;                                  // idle: ~800 rpm, four cylinders
+      C.e1 = this.osc('sawtooth', f0); C.e2 = this.osc('sawtooth', f0 * 2.01); C.e3 = this.osc('sine', f0 * 0.5);
+      C.ef = this.filter('lowpass', 150, 2.2);        // the firewall
+      C.eg = this.gain(0.045);
+      const e2g = this.gain(0.38), e3g = this.gain(0.55);
+      C.e1.connect(C.ef); C.e2.connect(e2g).connect(C.ef); C.ef.connect(C.eg).connect(out);
+      C.e3.connect(e3g).connect(C.eg);
+      // the exhaust, under load
+      C.gr = this.src(this.noise.brown, { loop: true, rate: 0.7 });
+      C.grf = this.filter('bandpass', 95, 2.2); C.grg = this.gain(0.0);
+      C.gr.connect(C.grf).connect(C.grg).connect(out);
+      // the road
+      C.rn = this.src(this.noise.brown, { loop: true, rate: 0.8 });
+      C.rf = this.filter('lowpass', 130, 1.0); C.rg = this.gain(0.0);
+      C.rn.connect(C.rf).connect(C.rg).connect(out);
+      C.hs = this.src(this.noise.pink, { loop: true, rate: 0.95 });
+      C.hf = this.filter('bandpass', 1100, 0.6); C.hg = this.gain(0.0);
+      C.hs.connect(C.hf).connect(C.hg).connect(out);
+      // the heater fan, always
+      const fan = this.src(this.noise.pink, { loop: true, rate: 0.6 });
+      const ff = this.filter('lowpass', 420, 0.6), fg = this.gain(0.028);
+      fan.connect(ff).connect(fg).connect(out);
+      [C.e1, C.e2, C.e3, C.gr, C.rn, C.hs, fan].forEach(s => s.start());
+      return () => { [C.e1, C.e2, C.e3, C.gr, C.rn, C.hs, fan].forEach(s => { try { s.stop(); } catch {} }); if (this._car === C) this._car = null; };
     }, { vol: 1 });
+  }
+
+  /**
+   * Drive the car loop. `speed` 0..1 of flat out, `load` 0..1 how far
+   * the pedal is down. Revs climb with speed (no gears: it is an
+   * automatic and he is not listening to it), and the throttle puts
+   * the growl under it.
+   */
+  setCarSpeed(speed = 0, { load = 0 } = {}) {
+    const C = this._car;
+    if (!C || !this.ready) return;
+    const t = this.t, s = Math.max(0, Math.min(1, speed)), L = Math.max(0, Math.min(1, load));
+    const rpm = Math.min(1, s * 1.15);
+    const f = 27 + rpm * 62 + L * 5;
+    C.e1.frequency.setTargetAtTime(f, t, 0.25);
+    C.e2.frequency.setTargetAtTime(f * 2.01, t, 0.25);
+    C.e3.frequency.setTargetAtTime(f * 0.5, t, 0.25);
+    C.ef.frequency.setTargetAtTime(130 + rpm * 240 + L * 140, t, 0.3);
+    C.eg.gain.setTargetAtTime(0.040 + L * 0.028 + rpm * 0.022, t, 0.3);
+    C.grf.frequency.setTargetAtTime(60 + f * 1.1, t, 0.3);
+    C.grg.gain.setTargetAtTime(L * (0.035 + rpm * 0.045), t, 0.35);
+    C.rf.frequency.setTargetAtTime(120 + s * 400, t, 0.4);
+    C.rg.gain.setTargetAtTime(s * 0.22, t, 0.4);
+    C.hg.gain.setTargetAtTime(s * s * 0.024, t, 0.4);
+  }
+
+  /**
+   * A petrol pump, running: the motor in the island (mains hum through
+   * a steel box), the fuel in the hose, and the gurgle in the filler
+   * neck, which is bubbles on no period at all.
+   */
+  fuelPump() {
+    return this.loop('pump', out => {
+      const h1 = this.osc('sawtooth', 60); const hf = this.filter('lowpass', 260, 3); const hg = this.gain(0.030);
+      h1.connect(hf).connect(hg).connect(out);
+      const h2 = this.osc('sine', 120); const h2g = this.gain(0.018);
+      h2.connect(h2g).connect(out);
+      const n = this.src(this.noise.pink, { loop: true }); const f = this.filter('bandpass', 520, 0.8); const g = this.gain(0.09);
+      n.connect(f).connect(g).connect(out);
+      const n2 = this.src(this.noise.brown, { loop: true, rate: 1.2 }); const f2 = this.filter('lowpass', 320, 1.4); const g2 = this.gain(0.09);
+      n2.connect(f2).connect(g2).connect(out);
+      let alive = true, timer = 0;
+      const bubble = () => {
+        if (!alive || !this.ready) return;
+        const t = this.t;
+        const o = this.osc('sine', 160 + Math.random() * 300); const og = this.gain(0.0001);
+        o.connect(og).connect(out);
+        o.frequency.exponentialRampToValueAtTime(o.frequency.value * (1.3 + Math.random() * 0.6), t + 0.05);
+        og.gain.setValueAtTime(0.0001, t);
+        og.gain.exponentialRampToValueAtTime(0.02 + Math.random() * 0.035, t + 0.008);
+        og.gain.exponentialRampToValueAtTime(0.0001, t + 0.05 + Math.random() * 0.06);
+        o.start(t); o.stop(t + 0.14);
+        timer = setTimeout(bubble, 70 + Math.random() * 260);
+      };
+      bubble();
+      [h1, h2, n, n2].forEach(s => s.start());
+      return () => { alive = false; clearTimeout(timer); [h1, h2, n, n2].forEach(s => { try { s.stop(); } catch {} }); };
+    }, { vol: 1, fade: 0.5 });
   }
 
   // ============================================================ FOOTSTEPS
@@ -913,9 +997,12 @@ export class AudioEngine {
    *
    * kind: thud · click · latch · creak · match · pour · paper ·
    *       sizzle · glass · metal · salt · dialtone · ring · coin ·
-   *       shutter · text · wood · splash · ignite · breath · engine ·
-   *       pickup · setdown · cloth · book · mug · switch · drawer ·
-   *       fabric · chair
+   *       shutter · text · ringtone · vibrate · dashchime · nozzle ·
+   *       wood · splash · ignite · breath · engine · pickup · setdown ·
+   *       cloth · book · mug · switch · drawer · fabric · chair
+   *
+   * `ring` is the ringback tone in an earpiece (you are calling
+   * somebody). `ringtone` is the phone in your pocket going off.
    *
    * The house rule here is the same as everywhere else: nothing gets
    * a four-millisecond attack, nothing lives above 5 kHz on its own,
@@ -952,7 +1039,89 @@ export class AudioEngine {
       o.start(st); o.stop(st + dur + 0.05);
     };
     const R = () => Math.random();
+
+    // ---- the phone ------------------------------------------------
+    /** A phone's speaker: a slot the size of a fingernail. Nothing
+     *  under 600 Hz, a honk around 2.7 kHz, and it is done by 7 kHz. */
+    const tiny = () => {
+      const hp = this.filter('highpass', 640, 0.8);
+      const pk = this.filter('peaking', 2700, 1.3); pk.gain.value = 5;
+      const lp = this.filter('lowpass', 6800, 0.7);
+      hp.connect(pk).connect(lp).connect(out);
+      return hp;
+    };
+    /** The vibrate motor: an eccentric weight at 180 Hz, and the case
+     *  and whatever it is lying on rattling along with it. */
+    const buzz = (at, dur, a = 1) => {
+      const o = this.osc('sawtooth', 178); const lp = this.filter('lowpass', 440, 2.2); const g = this.gain(0.0001);
+      o.connect(lp).connect(g).connect(out);
+      const n = this.src(this.noise.white, { rate }); const nb = this.filter('bandpass', 1700, 1.4); const ng = this.gain(0.0001);
+      n.connect(nb).connect(ng).connect(out);
+      const st = t + at;
+      for (const [gg, v] of [[g, 0.17 * a], [ng, 0.045 * a]]) {
+        gg.gain.setValueAtTime(0.0001, st);
+        gg.gain.exponentialRampToValueAtTime(v, st + 0.014);
+        gg.gain.setValueAtTime(v, st + dur - 0.02);
+        gg.gain.exponentialRampToValueAtTime(0.0001, st + dur + 0.025);
+      }
+      o.start(st); o.stop(st + dur + 0.05);
+      n.start(st, R(), dur + 0.1); n.stop(st + dur + 0.05);
+    };
+    /** A marimba-ish note into the tiny speaker: a sine with a bar's
+     *  fourth partial and a short tick on the front. */
+    const chime = (f, at, dur, a, dest) => {
+      const st = t + at;
+      [[1, 1, dur], [4, 0.22, dur * 0.22], [9.93, 0.05, 0.045]].forEach(([m, k, d]) => {
+        if (f * m > 9000) return;
+        const o = this.osc('sine', f * m); const g = this.gain(0.0001);
+        o.connect(g).connect(dest);
+        g.gain.setValueAtTime(0.0001, st);
+        g.gain.exponentialRampToValueAtTime(Math.max(0.0002, a * k), st + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.0001, st + d);
+        o.start(st); o.stop(st + d + 0.05);
+      });
+    };
+
     switch (kind) {
+      case 'vibrate':
+        buzz(0, 0.11); buzz(0.19, 0.11);
+        break;
+      case 'dashchime': {
+        // the dash, telling you something: three soft bongs from a
+        // speaker the size of a coin, behind the cluster
+        const sp = this.filter('bandpass', 1900, 0.5); sp.connect(out);
+        for (let i = 0; i < 3; i++) chime(1046, i * 0.62, 0.55, 0.30, sp);
+        break;
+      }
+      case 'nozzle':
+        // the pump handle: a spring latch and a pint of steel
+        N('white', 1600, 1.8, 0.045, 0.55, 0, 0.006);
+        T('triangle', 170, 118, 0.10, 0.32, 0.004, 0.008);
+        N('brown', 210, 1.1, 0.14, 0.70, 0.006, 0.010);
+        T('sine', 92, 60, 0.18, 0.30, 0.008, 0.012);
+        break;
+      case 'text': {
+        // a 2014 Android, face up on a table: the motor first, then two
+        // notes through a speaker the size of a fingernail
+        const sp = tiny();
+        buzz(0, 0.10, 0.9); buzz(0.17, 0.10, 0.9);
+        chime(988, 0.02, 0.55, 0.55, sp);
+        chime(1319, 0.15, 0.75, 0.50, sp);
+        break;
+      }
+      case 'ringtone': {
+        // the stock tone, two bars of it, the motor going under each bar
+        const sp = tiny();
+        const eighth = 0.214;
+        const tune = [[659, 0], [784, 1], [988, 2], [1319, 3], [1175, 5], [988, 6], [784, 7]];
+        for (let bar = 0; bar < 2; bar++) {
+          const off = bar * eighth * 9.2;
+          buzz(off, 0.62, 0.8);
+          tune.forEach(([f, k]) => chime(f, off + k * eighth, 0.42, 0.42, sp));
+        }
+        break;
+      }
+
       // ---- handling things -------------------------------------------
       // a pickup is: the hand arriving, the object leaving the surface,
       // and the object's own note. three events inside 90 ms.
@@ -1021,9 +1190,12 @@ export class AudioEngine {
       case 'metal':    T('triangle', 700, 660, 1.0, 0.26, 0, 0.009); T('sine', 1180, 1150, 0.6, 0.11, 0, 0.008); N('white', 1800, 2.4, 0.06, 0.24, 0, 0.008); break;
       case 'coin':     T('triangle', 1500, 1300, 0.55, 0.18, 0, 0.007); T('sine', 780, 720, 0.4, 0.10, 0, 0.008); break;
       case 'dialtone': { const a = this.osc('sine', 350), b = this.osc('sine', 440); const g = this.gain(0.0001); a.connect(g); b.connect(g); g.connect(out); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.11, t + 0.05); g.gain.setValueAtTime(0.11, t + 2.1); g.gain.linearRampToValueAtTime(0.0001, t + 2.2); a.start(t); b.start(t); a.stop(t + 2.25); b.stop(t + 2.25); break; }
-      case 'ring':     for (let i = 0; i < 2; i++) { const o = this.osc('sine', 440 + i * 40); const g = this.gain(0.0001); o.connect(g).connect(out); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.16, t + 0.05); g.gain.setValueAtTime(0.16, t + 1.58); g.gain.linearRampToValueAtTime(0.0001, t + 1.68); o.start(t); o.stop(t + 1.72); } break;
+      case 'ring': {   // ringback, in the earpiece: 440 + 480, two seconds on
+        const ear = this.filter('bandpass', 1100, 0.45); ear.connect(out);
+        for (const f of [440, 480]) { const o = this.osc('sine', f); const g = this.gain(0.0001); o.connect(g).connect(ear); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(0.15, t + 0.04); g.gain.setValueAtTime(0.15, t + 1.92); g.gain.linearRampToValueAtTime(0.0001, t + 2.0); o.start(t); o.stop(t + 2.05); }
+        break;
+      }
       case 'shutter':  N('white', 1500, 2.2, 0.035, 0.42, 0, 0.006); setTimeout(() => this.sfx('click', { vol: vol * 0.7 }), 70); break;
-      case 'text':     T('sine', 660, 660, 0.14, 0.18, 0, 0.010); setTimeout(() => T('sine', 990, 990, 0.18, 0.16, 0, 0.010), 120); break;
       case 'wood':     N('brown', 260, 1.4, 0.15, 0.70, 0, 0.011); T('sine', 140, 100, 0.18, 0.22, 0, 0.012); break;
       case 'splash':   N('brown', 420, 0.5, 0.40, 0.58, 0, 0.014); N('white', 1700, 0.7, 0.24, 0.20, 0.01, 0.020); break;
       case 'ignite':   N('white', 2200, 0.6, 0.45, 0.42, 0, 0.014); T('sine', 110, 55, 0.34, 0.38, 0, 0.016); break;
@@ -1155,6 +1327,7 @@ export class AudioEngine {
    * beat first, which is what a chapter change wants.
    */
   musicScene(scene, opts = {}) {
+    this.wantScene = scene;          // remembered, so the unlock can replay it
     if (!this.ready) return;
     this.music?.setScene(scene, opts);
   }

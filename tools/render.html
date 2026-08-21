@@ -73,9 +73,10 @@ function preroll(unit, seconds, meterOf) {
   clearInterval(unit.timer); unit.timer = null;
   let guard = 0;
   while (unit.nextTime < seconds && guard++ < 20000) {
+    if (unit._advance) { unit._advance(); continue; }     // a radio: records, fades, the gaps between
     unit._bar(unit.nextTime);
     unit.nextTime += unit.beat * meterOf();
-    if ('pieceBar' in unit) unit.pieceBar++; else unit.bar++;
+    unit.pieceBar++;
   }
 }
 
@@ -116,25 +117,79 @@ async function bounceRadio(id, seconds) {
   r.out.gain.exponentialRampToValueAtTime(0.95, 0.6);
   r.out.gain.setValueAtTime(0.95, Math.max(0.7, seconds - 3));
   r.out.gain.exponentialRampToValueAtTime(0.0001, seconds);
-  r.bar = 0; r.nextTime = 0.35;
+  // start near the end of a record so the bounce has the fade, the
+  // break and the next one in it
+  r.bar = r.songBar = Math.max(0, (r.station.len || 48) - 6); r.nextTime = 0.35;
   preroll(r, seconds, () => r.station.meter);
   return { buf: await ctx.startRendering(), title: `${r.station.call} ${r.station.name}` };
+}
+
+/** The phone, on its own, for listening to without the rest of the game. */
+async function bounceSfx(kinds, seconds) {
+  const ctx = fresh(seconds);
+  await audio.unlock({ context: ctx });
+  audio.bus.master.gain.value = 1.0;
+  audio.bus.sfx.gain.value = 1.0;
+  // sfx() reads the clock, which in an offline context only moves
+  // when rendering does, so fire each one with the clock pushed by hand
+  let at = 0.3;
+  for (const [k, gap] of kinds) {
+    Object.defineProperty(ctx, 'currentTime', { value: at, configurable: true });
+    audio.sfx(k, { vol: 0.8 });
+    at += gap;
+  }
+  return { buf: await ctx.startRendering(), title: kinds.map(k => k[0]).join(' ') };
+}
+
+/** The car: idle, pull away, flat out, brake, the tank light; then the pump. */
+async function bounceCar(seconds) {
+  const ctx = fresh(seconds);
+  await audio.unlock({ context: ctx });
+  audio.bus.master.gain.value = 1.0;
+  audio.bus.amb.gain.value = 1.0; audio.bus.sfx.gain.value = 1.0;
+  const at = (t) => Object.defineProperty(ctx, 'currentTime', { value: t, configurable: true });
+  at(0); audio.carInterior(); audio.wind(0.25);
+  // a drive: the speed curve, sampled every tenth of a second
+  for (let t = 0; t < 18; t += 0.1) {
+    const s = t < 2 ? 0 : t < 9 ? (t - 2) / 7 : t < 13 ? 1 : Math.max(0, 1 - (t - 13) / 4);
+    const load = t < 2 ? 0 : t < 9 ? 1 : t < 13 ? 0.5 : 0;
+    at(t); audio.setCarSpeed(s, { load });
+  }
+  at(10); audio.sfx('dashchime', { vol: 0.45 });
+  at(18); audio.killLoop('car', 0.9); audio.killLoop('wind', 0.9);
+  at(19.5); audio.sfx('nozzle', { vol: 0.55 });
+  at(20.2); audio.sfx('latch', { vol: 0.35 }); audio.fuelPump();
+  at(26); audio.killLoop('pump', 0.4);
+  at(26.6); audio.sfx('nozzle', { vol: 0.5 });
+  return { buf: await ctx.startRendering(), title: 'car, tank light, pump' };
 }
 
 const send = (name, title, buf) =>
   fetch('/save?name=' + encodeURIComponent(name) + '&title=' + encodeURIComponent(title),
     { method: 'POST', body: wav(buf) });
 
+const ONLY = new URLSearchParams(location.search).get('only') || '';
+const want = (k) => !ONLY || ONLY.split(',').includes(k);
 try {
-  for (const [id, secs] of SCORE) {
+  for (const [id, secs] of (want('score') ? SCORE : [])) {
     const { buf, title } = await bounceScore(id, secs);
     await send('score-' + id, title, buf);
     log('score  ' + id + '  ' + secs + 's  "' + title + '"');
   }
-  for (const [id, secs] of RADIO) {
+  for (const [id, secs] of (want('radio') ? RADIO : [])) {
     const { buf, title } = await bounceRadio(id, secs);
     await send('radio-' + id, title, buf);
     log('radio  ' + id + '  ' + secs + 's  "' + title + '"');
+  }
+  if (want('car')) {
+    const { buf, title } = await bounceCar(28);
+    await send('sfx-car', title, buf);
+    log('sfx    car  "' + title + '"');
+  }
+  if (want('sfx')) {
+    const { buf, title } = await bounceSfx([['text', 2.5], ['vibrate', 2.0], ['ringtone', 5.5], ['ring', 3.0]], 14);
+    await send('sfx-phone', title, buf);
+    log('sfx    phone  "' + title + '"');
   }
   await fetch('/done', { method: 'POST' });
 } catch (e) {

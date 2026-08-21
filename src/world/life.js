@@ -14,13 +14,14 @@
    is interactable, none of it is plot, and none of it ever comes
    closer than the far pavement.
 
-     extra    -- a person, in six boxes and a walk cycle. NOT a
-                 `humanoid`: that thing is a lathe torso, a
-                 painted face, ten finger joints and a blink
-                 timer, and it exists so that Recca can be looked
-                 at from forty centimetres. Nobody out here is
-                 ever nearer than eleven metres and there are
-                 sixteen of them.
+     extra    -- a person, and a walk cycle. The same skinned
+                 body as the cast (body.js) at its low setting:
+                 one draw call for the body, one for the head,
+                 one for the hair, a mitten for a hand. Nobody
+                 out here is ever nearer than eleven metres and
+                 there are sixteen of them, so the rest of what
+                 Recca has -- fingers, ears, a blink timer -- is
+                 not here.
 
      crowd    -- walkers on both pavements and up the street, and
                  pairs of people standing still, talking. The
@@ -37,14 +38,14 @@
 
    The cost rule from facades.js still holds. Nothing here casts
    or receives a shadow, and everything that can be merged has
-   been. What CANNOT be merged is the six pieces of each figure
-   that have to keep moving, which is the whole budget: sixteen
-   people is ninety-six draw calls and that is the number the
-   count of them was chosen from.
+   been. A figure is three or four draw calls (body, head, hair,
+   maybe a hat), which is fewer than the six boxes it used to be:
+   sixteen people is about sixty draw calls.
    ============================================================ */
 import * as THREE from 'three';
-import { flat } from './mat.js';
-import { BOX, CYL } from './world.js';
+import { MAT, flat, mat, T } from './mat.js';
+import { BOX, CYL, SHAPE } from './world.js';
+import { humanoid } from './props.js';
 import { carBody } from './facades.js';
 import { audio } from '../core/audio.js';
 
@@ -58,6 +59,7 @@ const rng = (seed) => {
   };
 };
 const pick = (R, a) => a[Math.floor(R() * a.length) % a.length];
+const mul = (c, k) => new THREE.Color(c).multiplyScalar(k).getHex();
 
 /* What people in a coal town wear in August and what they wear in
    February. Muted, and none of it is black: a row of black coats at
@@ -70,95 +72,107 @@ const HAIR = [0x3a2b20, 0x1f1a16, 0x6a5a45, 0x8a7a68, 0xcfcac0, 0x4a3b30];
 const HATS = [0x2b2f34, 0x5a4a38, 0x6a2f26, 0x3f4a42];
 
 /**
- * A person, in six boxes.
+ * A person on the pavement.
  *
- * The six are not arbitrary. Two legs and two arms is what a walk
- * cycle needs; a torso is what the swing hangs off; a head is what
- * makes it a person rather than a coat. Everything else -- hands,
- * feet, a face, a neck -- is invisible past about eight metres and
- * costs a draw call each, so none of it is here.
+ * The same skinned body as the cast, at the low setting: fewer rings,
+ * a mitten instead of fingers, no ears, a 256 atlas. One draw call for
+ * the body, one for the head, one for the hair, and a hat or a bag on
+ * some of them. Nobody out here is ever nearer than eleven metres, and
+ * at that distance what reads is the silhouette, the walk, and that the
+ * coat is a coat; all three of those are now the same thing they are on
+ * Recca.
  *
  * Built facing +Z, standing on y = 0, and it is the caller's job to
  * put it somewhere and turn it round.
  */
+const TOP_SUMMER = ['flannel', 'shirt', 'hoodie', 'jacket', 'sweater', 'flannel'];
+const TOP_WINTER = ['jacket', 'hoodie', 'coat', 'jacket', 'sweater', 'hoodie'];
 export function extra(parent, seed = 1, { winter = false } = {}) {
   const R = rng(seed);
-  const g = new THREE.Group();
-  parent.add(g);
-
   const h = 1.56 + R() * 0.28;               // 5'1" to 6'1", which is a street
-  const s = h / 1.72;
   const build = 0.9 + R() * 0.3;
+  const female = R() > 0.52 ? 1 : 0;
+  const old = R() > 0.7;
   const coatCol = pick(R, COAT);
-  const coatM = flat(coatCol, { rough: .96 });
-  const legM = flat(pick(R, LEGS), { rough: .96 });
-  const skinM = flat(pick(R, SKIN), { rough: .78 });
-  const hairM = flat(pick(R, HAIR), { rough: .95 });
+  const skin = pick(R, SKIN), hair = pick(R, HAIR);
+  const face = seed % 5;
+
+  // what they have on: a top in one of five cuts, trousers, something on
+  // their feet. The colours come from the same muted table as before;
+  // the cut is what stops two grey coats being two of one coat.
+  const topStyle = pick(R, winter ? TOP_WINTER : TOP_SUMMER);
+  const pantsStyle = R() > 0.6 ? 'trouser' : R() > 0.3 ? 'jeans' : 'khaki';
+  const pantsCol = pick(R, LEGS);
+  const shoeCol = pick(R, [0x1c1a18, 0x2a221c, 0x3a2e24, 0x15171a]);
+  const shoeStyle = R() > 0.7 ? 'sneaker' : R() > 0.4 ? 'boot' : 'shoe';
+  const hairStyle = female
+    ? pick(R, old ? ['bun', 'bob', 'short'] : ['long', 'bob', 'ponytail', 'wave'])
+    : pick(R, old ? ['short', 'crop'] : ['short', 'crop', 'short']);
+
+  const p = humanoid({
+    height: h, skin, hair, build, female, age: old ? 0.55 : 0.0,
+    top: topStyle === 'coat' ? 0x5a6070 : coatCol, topStyle, top2: topStyle === 'flannel' ? mul(coatCol, 0.5) : null,
+    coat: topStyle === 'coat' ? coatCol : null,
+    bottom: pantsCol, pantsStyle, boots: shoeCol, shoeStyle,
+    hairStyle, hairLong: false, detail: 'low',
+    head: { wide: 0.96 + (face % 3) * 0.03, jaw: 0.9 + (face % 2) * 0.16, nose: 0.9 + face * 0.06, chin: 0.95 + (face % 2) * 0.1 },
+    face: {
+      age: old ? 0.7 : 0.1, id: 'extra' + face,
+      stubble: (!female && face > 2) ? 0.6 : 0,
+      eyeGap: 0.94 + face * 0.03, noseW: 0.9 + face * 0.06, mouthW: 0.9 + (face % 3) * 0.08
+    }
+  });
+  const g = p.g;
+  parent.add(g);
+  const s = p.scale;
+  const { hr, hy, hsy } = p.head;
   const put = (m, px, py, pz, parent2) => {
     m.castShadow = false; m.receiveShadow = false;
     m.position.set(px, py, pz);
     (parent2 || g).add(m); return m;
   };
+  const darker = (f) => flat(mul(coatCol, f), { rough: .96 });
 
-  // ---- legs, on hip pivots ----
-  const legs = [-1, 1].map(sd => {
-    const hip = new THREE.Group();
-    hip.position.set(sd * 0.10 * s * build, 0.86 * s, 0);
-    g.add(hip);
-    const leg = new THREE.Mesh(BOX(0.15 * s * build, 0.86 * s, 0.18 * s), legM);
-    put(leg, 0, -0.43 * s, 0, hip);
-    return { hip, side: sd };
-  });
+  // a hat on about a third: a flat cap or a knitted beanie, and in
+  // winter nearly everybody has something on
+  if (R() > (winter ? 0.35 : 0.66)) {
+    const hatM = mat('fabricdark', T.fabricdark, { color: mul(pick(R, HATS), 1.5), roughness: .98 });
+    if (R() > 0.5) {
+      // beanie: a dome pulled down over the crown, with a turned-up brim
+      const b = put(new THREE.Mesh(SHAPE.Sphere(hr * 1.10, 12, 8, -Math.PI / 2, Math.PI * 2, 0, Math.PI * 0.50), hatM), 0, hy + 0.012 * s, -0.004 * s, p.headG);
+      b.scale.y = hsy * 1.02;
+      put(new THREE.Mesh(CYL(hr * 1.12, hr * 1.12, 0.032 * s, 12), hatM), 0, hy + hr * hsy * 0.32, -0.004 * s, p.headG);
+    } else {
+      // flat cap: a low crown and a short brim forward
+      put(new THREE.Mesh(CYL(hr * 1.0, hr * 1.12, 0.06 * s, 10), hatM), 0, hy + hr * hsy * 0.80, -0.012 * s, p.headG);
+      put(new THREE.Mesh(BOX(hr * 1.9, 0.012, hr * 1.0), hatM), 0, hy + hr * hsy * 0.62, hr * 0.86, p.headG);
+    }
+  }
 
-  // ---- trunk: a coat, and shoulders slightly wider than the waist ----
-  const torso = new THREE.Group();
-  torso.position.y = 0.86 * s;
-  g.add(torso);
-  const coatH = (winter ? 0.62 : 0.52) * s;
-  const darker = (f) => flat(new THREE.Color(coatCol).multiplyScalar(f).getHex(), { rough: .96 });
-  put(new THREE.Mesh(BOX(0.44 * s * build, coatH, 0.26 * s), coatM), 0, coatH / 2 - 0.02 * s, 0, torso);
-  // the yoke across the shoulders, a shade darker, which is the only
-  // thing at this budget that says which way round the person is
-  put(new THREE.Mesh(BOX(0.47 * s * build, 0.10 * s, 0.27 * s), darker(0.86)),
-    0, coatH - 0.02 * s, 0, torso);
-
-  // ---- head. One box for the skull, one thinner one for the hair,
-  // and on about a third of them a hat, which at this distance is the
-  // only thing that makes two people in grey coats two people. ----
-  const headG = new THREE.Group();
-  headG.position.y = coatH + 0.14 * s;
-  torso.add(headG);
-  put(new THREE.Mesh(BOX(0.17 * s, 0.22 * s, 0.19 * s), skinM), 0, 0, 0, headG);
-  put(new THREE.Mesh(BOX(0.185 * s, 0.11 * s, 0.20 * s), hairM), 0, 0.07 * s, -0.01 * s, headG);
+  // a bag, on some of them. It changes the silhouette more than the hat
+  // does. A few carry it; the rest have it on a strap.
   if (R() > 0.66) {
-    const hatM = flat(pick(R, HATS), { rough: .95 });
-    put(new THREE.Mesh(CYL(0.10 * s, 0.11 * s, 0.11 * s, 8), hatM), 0, 0.16 * s, 0, headG);
-    put(new THREE.Mesh(BOX(0.26 * s, 0.02 * s, 0.24 * s), hatM), 0, 0.11 * s, 0.02 * s, headG);
+    const bagM = flat(pick(R, [0x2a2622, 0x5a4a38, 0x3a3f4a, 0x6a3a30]), { rough: .95 });
+    if (R() > 0.5) {
+      put(new THREE.Mesh(BOX(0.18 * s, 0.26 * s, 0.10 * s), bagM), 0.03 * s, -0.62 * s, 0.03 * s, p.arms[1].sh);
+    } else {
+      put(new THREE.Mesh(BOX(0.26 * s, 0.20 * s, 0.10 * s), bagM), -0.245 * s, 0.10 * s, 0, p.torso);
+      const strap = put(new THREE.Mesh(BOX(0.03 * s, 0.50 * s, 0.012), bagM), -0.03 * s, 0.30 * s, 0.128 * s, p.torso);
+      strap.rotation.z = -0.36;
+    }
   }
-
-  // ---- arms, on shoulder pivots ----
-  // The sleeves are a shade off the coat. Painted the same colour they
-  // vanish into the torso and the figure walks with its hands in its
-  // pockets whether it wants to or not.
-  const sleeveM = darker(0.92);
-  const arms = [-1, 1].map(sd => {
-    const sh = new THREE.Group();
-    sh.position.set(sd * 0.26 * s * build, coatH - 0.07 * s, 0);
-    torso.add(sh);
-    const arm = new THREE.Mesh(BOX(0.115 * s, 0.58 * s, 0.135 * s), sleeveM);
-    put(arm, 0, -0.29 * s, 0, sh);
-    return { sh, side: sd };
-  });
-
-  // a bag, on some of them. It is one box and it changes the silhouette
-  // more than the hat does.
-  if (R() > 0.72) {
-    const bag = new THREE.Mesh(BOX(0.18 * s, 0.24 * s, 0.11 * s), flat(pick(R, LEGS), { rough: .98 }));
-    put(bag, 0.30 * s * build, -0.46 * s, 0.02 * s, arms[1].sh);
+  // winter: a scarf, and the breath would be nice but is not cheap
+  if (winter && R() > 0.4) {
+    put(new THREE.Mesh(BOX(0.22 * s, 0.06 * s, 0.20 * s), flat(pick(R, [0x7a2a2a, 0x3a4a6a, 0x6a6a5a, 0x4a5a3a]), { rough: .98 })),
+      0, 0.505 * s, 0.012 * s, p.torso);
   }
+  g.traverse(o => { if (o.isMesh) { o.castShadow = false; o.receiveShadow = false; } });
 
   return {
-    g, torso, headG, legs, arms, scale: s,
+    g, torso: p.torso, headG: p.headG,
+    legs: p.legs.map(l => ({ hip: l.hp, side: l.side })),
+    arms: p.arms.map(a => ({ sh: a.sh, side: a.side })),
+    scale: s,
     speed: 0.95 + R() * 0.4,
     phase: R() * 6.283,
     seed

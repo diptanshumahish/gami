@@ -16,6 +16,7 @@
    cannot interfere with an interaction or with the focus pull.
    ============================================================ */
 import * as THREE from 'three';
+import { SHAPE } from '../world/world.js';
 import { settings } from './state.js';
 
 const SKIN = 0xd8bda6;
@@ -56,6 +57,7 @@ export class ViewModel {
     this.reach = 0;              // 0..1, the door-opening lunge
     this.reachV = 0;
     this.legShow = 0;
+    this.wheel = null;           // both hands on a steering wheel, see setWheel()
 
     this.skin = skinMat(SKIN);
     this.cloth = new THREE.MeshStandardMaterial({ color: SLEEVE, roughness: 0.95 });
@@ -186,14 +188,14 @@ export class ViewModel {
       [0.070, -0.020], [0.068, -0.090], [0.058, -0.220], [0.048, -0.340],
       [0.046, -0.420], [0.010, -0.436]
     ]), this.trouser));
-    const calf = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), this.trouser);
+    const calf = new THREE.Mesh(SHAPE.Sphere(0.5, 10, 8), this.trouser);
     calf.scale.set(0.11, 0.20, 0.13); calf.position.set(0, -0.14, -0.024); knee.add(calf);
 
     const ankle = new THREE.Group(); ankle.position.y = -0.42; knee.add(ankle);
-    const sole = new THREE.Mesh(new THREE.BoxGeometry(0.104, 0.026, 0.265), this.sole);
+    const sole = new THREE.Mesh(SHAPE.Box(0.104, 0.026, 0.265), this.sole);
     sole.position.set(0, -0.070, -0.030); ankle.add(sole);
     const shoe = (w, h, d, x, y, z) => {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), this.boot);
+      const m = new THREE.Mesh(SHAPE.Sphere(0.5, 10, 8), this.boot);
       m.scale.set(w, h, d); m.position.set(x, y, z); ankle.add(m); return m;
     };
     shoe(0.108, 0.088, 0.215, 0, -0.042, -0.032);      // the vamp
@@ -203,7 +205,10 @@ export class ViewModel {
   }
 
   _noShadows(o) {
-    o.traverse(n => { n.castShadow = false; n.receiveShadow = false; n.frustumCulled = false; });
+    // they cast nothing (the torch would put a hand on every wall) but
+    // they do receive: in a car at golden hour a hand out of the roof's
+    // shadow glows like a glove
+    o.traverse(n => { n.castShadow = false; n.receiveShadow = true; n.frustumCulled = false; });
   }
 
   // ------------------------------------------------------------ api
@@ -229,6 +234,20 @@ export class ViewModel {
   setSleeve(color) { this.cloth.color.setHex(color); }
   /** He reached for something. Called by the interactor. */
   poke(strength = 1) { this.reachV = Math.max(this.reachV, 5.2 * strength); }
+  /**
+   * Both hands on a steering wheel, and they stay on it while he looks
+   * about. `spec`:
+   *   wheel        the Object3D that spins: rim in its local xy plane,
+   *                +x the driver's left, +z at the dash (the driver sits
+   *                on the -z side of the plane)
+   *   r            rim radius
+   *   shoulder(s)  -> world Vector3, the shoulder on side s (-1 left, +1 right)
+   *   grip         [leftAngle, rightAngle] on the rim, radians from +x;
+   *                default ten-and-two
+   * Pass null to let go. The caller keeps the wheel's world matrix fresh
+   * (car.updateMatrixWorld(true)) after moving the car each frame.
+   */
+  setWheel(spec) { this.wheel = spec; }
 
   dispose() {
     this.scene.remove(this.root); this.scene.remove(this.body);
@@ -254,6 +273,8 @@ export class ViewModel {
     this.root.quaternion.copy(cam.quaternion);
     this.body.position.set(cam.position.x, cam.position.y, cam.position.z);
     this.body.rotation.set(0, player.yaw, 0);
+
+    if (this.wheel) { this._drive(dt, cam, calm); return; }
 
     this._frame(cam);
     const planar = Math.hypot(player.vel.x, player.vel.z);
@@ -288,6 +309,7 @@ export class ViewModel {
 
       a.upper.rotation.set(ux, uy, uz);
       a.fore.rotation.set(fx, fy, a.rest.fore.z);
+      a.wrist.rotation.set(-0.30, 0, sd * 0.62);     // the grip pose leaves it turned
 
       // fingers curl for carrying, for the torch, and a little on the reach.
       // Three joints each, and the far joints close hardest, which is what
@@ -325,5 +347,82 @@ export class ViewModel {
       l.hip.rotation.x -= crouch * 0.55;
       l.knee.rotation.x += crouch * 1.0;
     });
+  }
+
+  // ------------------------------------------------------------ driving
+  /**
+   * Two-bone IK from the shoulder to a point on the rim, for each arm.
+   * Everything is solved in the root's space, which is the camera's, so
+   * the hands land on the wheel in the frame however the head is turned.
+   * The elbow is pushed down and out, the palm is turned to face the hub
+   * and the fingers close: a hand on a wheel, not a hand near one.
+   */
+  _drive(dt, cam, calm) {
+    const W = this.wheel;
+    this.root.updateMatrixWorld(true);
+    const inv = new THREE.Matrix4().copy(this.root.matrixWorld).invert();
+    const upL = new THREE.Vector3(0, 1, 0).applyQuaternion(cam.quaternion.clone().invert());
+    const hubL = W.wheel.localToWorld(new THREE.Vector3(0, 0, 0)).applyMatrix4(inv);
+    const L1 = 0.30, L2 = 0.33;
+    const sway = Math.sin(this.t * 1.3) * 0.004 * calm;
+    const m = new THREE.Matrix4();
+
+    this.arms.forEach((a, i) => {
+      const sd = a.side;
+      // the hands go round with the rim for the first forty-five degrees
+      // and then hold and let it slide, the way hands do: a hand glued to
+      // the rim through a full lock crosses the wheel with an arm
+      const ang = (W.grip ? W.grip[i] : (sd < 0 ? 0.52 : 2.62)) + THREE.MathUtils.clamp(W.wheel.rotation.z, -0.8, 0.8);
+      const frame = W.wheel.parent || W.wheel;
+      const T = frame.localToWorld(new THREE.Vector3(Math.cos(ang) * W.r, Math.sin(ang) * W.r, -0.018)).applyMatrix4(inv);
+      T.y += sway;
+      const S = W.shoulder(sd).applyMatrix4(inv);
+      a.g.position.copy(S);
+
+      // the solve: elbow on the side of the shoulder-to-grip line the pole points to
+      const dir = T.clone().sub(S);
+      let d = dir.length(); dir.normalize();
+      d = THREE.MathUtils.clamp(d, 0.08, L1 + L2 - 0.01);
+      // the elbow goes down, out and BACK toward his lap: an elbow pushed
+      // forward puts the forearm through the rim
+      const pole = new THREE.Vector3(sd * 0.6, -1, 0.45).normalize();
+      const perp = pole.clone().addScaledVector(dir, -pole.dot(dir));
+      if (perp.lengthSq() < 1e-6) perp.set(0, -1, 0); else perp.normalize();
+      const a1 = (L1 * L1 - L2 * L2 + d * d) / (2 * d);
+      const h = Math.sqrt(Math.max(0, L1 * L1 - a1 * a1));
+      const E = S.clone().addScaledVector(dir, a1).addScaledVector(perp, h);
+
+      // upper arm: its -Z from the shoulder to the elbow
+      m.lookAt(S, E, upL);
+      a.upper.quaternion.setFromRotationMatrix(m);
+      // forearm: from the elbow to the grip, expressed in the upper arm's frame
+      m.lookAt(E, T, upL);
+      const qF = new THREE.Quaternion().setFromRotationMatrix(m);
+      a.fore.quaternion.copy(a.upper.quaternion).invert().multiply(qF);
+      // the hand: fingers on along the forearm, palm (-Y) turned to the hub
+      const armDir = T.clone().sub(E).normalize();
+      const toHub = hubL.clone().sub(T);
+      toHub.addScaledVector(armDir, -toHub.dot(armDir));
+      if (toHub.lengthSq() < 1e-6) toHub.copy(upL).negate(); else toHub.normalize();
+      m.lookAt(T, T.clone().add(armDir), toHub.clone().negate());
+      const qW = new THREE.Quaternion().setFromRotationMatrix(m);
+      a.wrist.quaternion.copy(qF).invert().multiply(qW);
+      // and a little flex at the wrist so the knuckles ride over the rim
+      a.wrist.rotateX(-0.35);
+
+      const curl = 1.0;
+      a.fingers.forEach((f, k) => {
+        const c = curl * (1 + k * 0.05);
+        f.j1.rotation.x = f.rest[0] - c * 0.70;
+        f.j2.rotation.x = f.rest[1] - c * 0.95;
+        f.j3.rotation.x = f.rest[2] - c * 0.60;
+      });
+      a.th1.rotation.x = -0.20 - curl * 0.55;
+      a.th2.rotation.x = -0.26 - curl * 0.55;
+    });
+
+    // seated: the legs are under the dash, out of the frame
+    this.legShow = 0;
+    this.legs.forEach(l => { l.g.visible = false; });
   }
 }

@@ -88,7 +88,7 @@ step('doors: unknown kind falls back', () => audio.door('portcullis', 'open'));
 
 step('sfx: every kind × 30', () => {
   const kinds = ['thud','click','latch','doorclose','creak','match','sizzle','paper','pour','salt',
-    'glass','metal','coin','dialtone','ring','shutter','text','wood','splash','ignite','breath','engine',
+    'glass','metal','coin','dialtone','ring','shutter','text','ringtone','vibrate','wood','splash','ignite','breath','engine',
     'pickup','setdown','cloth','fabric','book','mug','switch','drawer','chair','somethingunknown'];
   for (const k of kinds) for (let i = 0; i < 30; i++) {
     audio.sfx(k, { vol: 0.5 });

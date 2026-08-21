@@ -15,7 +15,7 @@ import { buildVaskoHouse } from '../world/loc_vasko.js';
 import { buildApartment } from '../world/loc_home.js';
 import { makeVictor, makeReccaDrowned, makeRecca, gerald, recordPlayer } from '../world/props.js';
 import { MAT, flat, tiled } from '../world/mat.js';
-import { BOX, CYL, SPH, PLN } from '../world/world.js';
+import { SHAPE, BOX, CYL, SPH, PLN } from '../world/world.js';
 import { UI, wait } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { scares } from '../core/scares.js';
@@ -361,7 +361,7 @@ async function endingB(ctx, her, victor, church, saidItFirst) {
   her.g.visible = false;
 
   // there is a wet barn coat on the floor of the aisle, and nothing in it.
-  const coat = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.1, 1.1), tiled(MAT.coat, 0.7, 1.1));
+  const coat = new THREE.Mesh(SHAPE.Box(0.7, 0.1, 1.1), tiled(MAT.coat, 0.7, 1.1));
   coat.position.set(C.sanctX - 2.0, 0.05, 0);
   coat.rotation.y = 0.3;
   world.add(coat);
@@ -580,7 +580,7 @@ async function finalShot(ctx) {
 
   // a clean plate: the mine, capped, and covered.
   const g = new THREE.Group();
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(120, 120), tiled(MAT.snow, 120, 120));
+  const ground = new THREE.Mesh(SHAPE.Plane(120, 120), tiled(MAT.snow, 120, 120));
   ground.rotation.x = -Math.PI / 2;
   g.add(ground);
   const cap = new THREE.Mesh(CYL(3.0, 3.2, 0.5, 20), tiled(MAT.concrete, 6, 0.5));
@@ -590,7 +590,7 @@ async function finalShot(ctx) {
   const capSnow = new THREE.Mesh(CYL(3.05, 3.05, 0.09, 20), tiled(MAT.snow, 6, 0.1));
   capSnow.position.set(0, 0.54, 0);
   g.add(capSnow);
-  const fence = new THREE.Mesh(new THREE.BoxGeometry(0.08, 1.3, 40), flat(0x8a8f92, { rough: .5, metal: .5 }));
+  const fence = new THREE.Mesh(SHAPE.Box(0.08, 1.3, 40), flat(0x8a8f92, { rough: .5, metal: .5 }));
   fence.position.set(-14, 0.65, 0);
   g.add(fence);
   g.position.set(0, -400, 0);

@@ -15,6 +15,8 @@ const RADIUS = 0.28, STEP_UP = 0.42, EYE = 1.72;
 const { World } = await import('../src/world/world.js');
 const { buildApartment } = await import('../src/world/loc_home.js');
 const { buildRidgeBlock } = await import('../src/world/loc_street.js');
+const { buildLaundromat } = await import('../src/world/loc_home.js');
+const { buildDiner, buildPawn } = await import('../src/world/loc_town.js');
 
 const scene = new THREE.Scene();
 const world = new World(scene);
@@ -135,6 +137,75 @@ const solidAt = (name, px) => {
 solidAt('west of the cleaners', shops.cleaners.x - shops.cleaners.W / 2 - 2.0);
 solidAt('between the two shops', 0);
 solidAt('east of the realty', shops.realty.x + shops.realty.W / 2 + 2.0);
+
+/* ============================================================
+   Chapter One's route, which is the one the player actually
+   walks, and every metre of it is new: the pavement at the foot
+   of the outside stair, up sixteen steps, in at the hall door,
+   in at his own door, and then back down and east and west to
+   the two shopfronts the chapter cuts into the near row.
+
+   A diner behind a terrace with no gap in it is a diner you can
+   see the sign of and never reach, and it looks exactly the
+   same from the pavement as one you can.
+   ============================================================ */
+const scene3 = new THREE.Scene();
+const town = new World(scene3);
+const DINER_X = 21, PAWN_X = -19;
+const block1 = buildRidgeBlock(town, {
+  x: 0, y: 0, z: 0, night: false, life: false,
+  nearGaps: [[DINER_X - 5.8, DINER_X + 5.8], [PAWN_X - 4.4, PAWN_X + 4.4]]
+});
+const apt1 = buildApartment(town, { x: 0, y: 3.0, z: 0, boxes: false, lightsOn: true, hall: true });
+buildLaundromat(town, { x: 0, y: 0, z: 0 });
+const diner1 = buildDiner(town, { x: DINER_X, y: 0, z: 0.5 });
+const pawn1 = buildPawn(town, { x: PAWN_X, y: 0, z: 1.0 });
+W = town; y = 0; datum = 0;
+
+console.log('\nchapter one, the move-in route');
+const foot = block1.refs.stairFoot, land = block1.refs.landing;
+apt1.hall.refs.outerDoor.setOpen(true, { instant: true, quiet: true });
+apt1.refs.doorway.setOpen(true, { instant: true, quiet: true });
+diner1.refs.door.setOpen(true, { instant: true, quiet: true });
+pawn1.refs.door.setOpen(true, { instant: true, quiet: true });
+walk('from the tailgate to the boxes on the pavement',
+  [[3.0, 11.0], [3.9, 9.6], [4.6, 9.25]]);
+walk('and along to the foot of the stair',
+  [[4.6, 9.25], [5.6, 9.2], [foot.x, 9.15], [foot.x, foot.z - 0.2]]);
+walk('up the outside stair', [[foot.x, foot.z - 0.2], [land.x, land.z + 0.6]]);
+walk('across the landing and in at the hall door',
+  [[land.x, land.z + 0.6], [land.x, land.z], [land.x - 1.4, land.z]]);
+walk('down the hall to his own door', [[land.x - 1.4, land.z], [1.9, land.z]]);
+walk('in at his own door and put the box down', [[1.9, land.z], [1.9, 1.45], [-0.9, 1.15]]);
+
+// and back down, and out, and down the hill to the two open doors
+walk('back out and down the stair',
+  [[-0.9, 1.15], [1.9, 1.45], [1.9, land.z], [land.x - 1.4, land.z], [land.x, land.z],
+   [land.x, land.z + 0.6], [foot.x, foot.z - 0.2], [foot.x, 8.7]]);
+// the pavement is walked in front of the furniture, not through it: the
+// meters, trees and benches all sit in the two metres nearest the kerb
+walk('east along the pavement to the diner door',
+  [[foot.x, 8.6], [8.2, 8.9], [10, 6.3], [DINER_X + 4.3, 6.3], [DINER_X + 4.3, 5.2]]);
+walk('in at the diner', [[DINER_X + 4.3, 5.2], [DINER_X + 4.3, 3.4], [DINER_X + 4.0, 1.4]]);
+walk('along the front of the stools to the register',
+  [[DINER_X + 4.0, 1.4], [DINER_X + 2.6, 1.0], [DINER_X - 0.4, 1.0]]);
+walk('back out and west, past his own front door, to the pawn shop',
+  [[DINER_X - 0.4, 1.0], [DINER_X + 4.0, 1.4], [DINER_X + 4.3, 3.4], [DINER_X + 4.3, 5.2], [DINER_X + 4.3, 7.4],
+   [DINER_X + 4.3, 6.3], [10, 6.3], [8.2, 8.9], [foot.x, 9.0], [5.2, 8.9], [5.0, 7.6], [2.0, 6.6],
+   [PAWN_X + 2.6, 6.3], [PAWN_X - 2.6, 6.3], [PAWN_X - 2.6, 5.2]]);
+walk('in at the pawn shop', [[PAWN_X - 2.6, 5.2], [PAWN_X - 2.6, 3.2], [PAWN_X - 2.6, 1.6]]);
+walk('along the glass cases', [[PAWN_X - 2.6, 1.6], [PAWN_X, 1.2], [PAWN_X + 2.4, 1.2]]);
+
+// and the row either side of the two gaps still has to be a wall
+console.log('the near row is still solid where there is no shop');
+const nearSolid = (name, px) => {
+  const b = blocked(px, 4.4, 0);
+  console.log(b ? `  ✓ ${name} is solid (${b})` : `  ✗ ${name} is OPEN`);
+  if (!b) fails.push(['near row', name]);
+};
+nearSolid('east of the diner', DINER_X + 8.5);
+nearSolid('between the block and the diner', 13.0);
+nearSolid('west of the pawn shop', PAWN_X - 7.5);
 
 console.log(fails.length ? `\n${fails.length} FAILURE(S)` : '\nall routes walkable');
 fails.forEach(([n, m]) => console.log(`  ✗ ${n}: ${m}`));

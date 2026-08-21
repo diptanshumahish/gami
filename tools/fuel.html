@@ -1,0 +1,52 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>the Fuel & Go, held</title>
+<!--
+  The Fuel & Go with the real renderer, the car on the forecourt beside
+  pump two, the dusk sky. ?cx=&cy=&cz=&yaw=&pitch=&frames=&snow=1&capture=1
+  Coordinates are relative to the station origin (900, 0).
+-->
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<canvas id="viewport"></canvas>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Renderer } from '/src/core/render.js';
+import { World } from '/src/world/world.js';
+import { buildSky } from '/src/world/sky.js';
+import { buildFuelGo } from '/src/world/loc_town.js';
+import { ford } from '/src/world/car.js';
+const P = new URLSearchParams(location.search);
+const num = (k, d) => P.has(k) ? parseFloat(P.get(k)) : d;
+const snow = P.get('snow') === '1';
+const log = (m) => fetch('/log', { method: 'POST', body: String(m) });
+window.addEventListener('error', e => log('ERR ' + e.message + ' ' + (e.error && e.error.stack)));
+const renderer = new Renderer(document.getElementById('viewport'));
+const world = new World(renderer.scene);
+renderer.setGrade('autumn');
+const F = { x: 900, z: 0 };
+buildSky(world, { preset: snow ? 'winterNight' : 'dusk', camera: renderer.camera, fogDensity: 0.0082 });
+buildFuelGo(world, { x: F.x, y: 0, z: F.z, snow });
+ford(world, F.x, 0, F.z + 12.4, Math.PI / 2, { lights: true });
+const hemi = world.hemi(0x54677f, 0x2b241c, 0.85);
+const sun = world.sun([0.72, -0.12, -0.28], 0xE09A5A, 0.8, true, 42);
+world.add(sun.target);
+sun.position.set(F.x - 0.72 * 40, 0.12 * 40, F.z + 0.28 * 40 + 8); sun.target.position.set(F.x, 0, F.z + 8);
+const cam = renderer.camera;
+cam.position.set(F.x + num('cx', 4), num('cy', 1.66), F.z + num('cz', 14));
+cam.rotation.order = 'YXZ';
+cam.rotation.set(num('pitch', 0) * Math.PI / 180, num('yaw', 0) * Math.PI / 180, 0);
+const N = Math.round(num('frames', 30));
+let n = 0;
+function loop() {
+  const dt = 1 / 60;
+  world.update(dt, { camera: cam }); world.updateLights(cam); renderer.update(dt); renderer.render(); n++;
+  if (n === N && P.get('capture') === '1') {
+    const data = document.getElementById('viewport').toDataURL('image/png');
+    fetch('/save', { method: 'POST', body: data }).then(() => log('saved'));
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>

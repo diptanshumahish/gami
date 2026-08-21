@@ -20,6 +20,8 @@
    ============================================================ */
 import * as THREE from 'three';
 
+import { SHAPE } from './world.js';
+import { T } from './mat.js';
 const D2R = Math.PI / 180;
 const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 const rgba = (c, a) => `rgba(${c[0]},${c[1]},${c[2]},${a})`;
@@ -58,6 +60,23 @@ export const SKY_PRESETS = {
     clouds: { cover: 0.9, top: 44, lit: '#c6c9c6', shade: '#5e6a76', seed: 11, scale: 1.5 },
     stars: 0,
     fog: 0x8e9aa2, background: 0x7f8d97
+  },
+
+  /* Twenty minutes before that: the last of the sun, low in the west,
+     coming in under the cloud. This is the sky the drive in happens
+     under, and it is the one postcard the game allows itself, because
+     the next time he is on a road out of town it will be snowing and
+     dark and there will be somebody in the passenger seat. */
+  golden: {
+    stops: [
+      [-90, '#1c1a1e'], [-20, '#2a2428'], [-5, '#6b4f47'], [-1, '#c48a5e'],
+      [0, '#f2b36c'], [1.5, '#f4bb74'], [4, '#e49a66'], [8, '#c6765d'],
+      [14, '#9c5f66'], [22, '#6e4f6e'], [34, '#4a4470'], [55, '#2f3a66'], [90, '#213054']
+    ],
+    sun: { dir: [-0.84, 0.16, 0.30], core: '#fff1c8', glow: '#e8945c', halo: 58, disc: 1.6 },
+    clouds: { cover: 0.34, top: 24, lit: '#f0b48a', shade: '#6a4a58', seed: 29, scale: 1.35 },
+    stars: 0,
+    fog: 0xc9a37c, background: 0x8f6e62
   },
 
   /* An hour and a half later. The sun is behind the ridge, the west is
@@ -305,12 +324,19 @@ export function buildSky(world, { preset = 'afternoon', radius = 50, camera = nu
   const mat = new THREE.MeshBasicMaterial({
     side: THREE.BackSide, fog: false, depthTest: false, depthWrite: false
   });
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(radius, 48, 32), mat);
+  const dome = new THREE.Mesh(SHAPE.Sphere(radius, 48, 32), mat);
   dome.renderOrder = -1000;
   dome.frustumCulled = false;
   group.add(dome);
 
-  const h = { group, dome, stars: null, preset: null };
+  // The clouds proper: cards on the dome, in front of the painted haze,
+  // so that the sky has things IN it. Sprites, so they face him from the
+  // seat and from the landing alike; drawn straight after the dome and
+  // before the world (alphaTest, not blending, keeps them in the opaque
+  // pass), so a roofline or a tree is always in front of them.
+  const cloudG = new THREE.Group(); cloudG.frustumCulled = false; group.add(cloudG);
+
+  const h = { group, dome, stars: null, preset: null, clouds: cloudG };
 
   h.set = (next, { density = null } = {}) => {
     const p = typeof next === 'string' ? SKY_PRESETS[next] : next;
@@ -323,6 +349,29 @@ export function buildSky(world, { preset = 'afternoon', radius = 50, camera = nu
 
     if (h.stars) { group.remove(h.stars); h.stars.geometry.dispose(); h.stars.material.dispose(); h.stars = null; }
     if (p.stars > 0) { h.stars = buildStars(p.stars, radius * 0.94, p.starSeed ?? 5); group.add(h.stars); }
+
+    while (cloudG.children.length) { const c = cloudG.children.pop(); c.material.dispose(); }
+    if (p.clouds && p.clouds.cover > 0) {
+      const R = rng((p.clouds.seed ?? 7) * 3 + 1);
+      const n = Math.max(3, Math.round(p.clouds.cover * 16));
+      const dist = radius * 0.88;
+      const lit = new THREE.Color(p.clouds.lit);
+      for (let i = 0; i < n; i++) {
+        const el = (6 + Math.pow(R(), 1.5) * ((p.clouds.top ?? 30) - 6)) * D2R;
+        const az = R() * Math.PI * 2;
+        const m = new THREE.SpriteMaterial({
+          map: T.cloud(1 + (i % 3)), color: lit.clone().multiplyScalar(0.9 + R() * 0.15),
+          alphaTest: 0.35, transparent: false, depthTest: false, depthWrite: false, fog: false
+        });
+        const sp = new THREE.Sprite(m);
+        sp.position.set(Math.cos(az) * Math.cos(el) * dist, Math.sin(el) * dist, Math.sin(az) * Math.cos(el) * dist);
+        const w = (5 + R() * 9) * (p.clouds.scale ?? 1) * (radius / 50);
+        sp.scale.set(w, w * 0.5, 1);
+        sp.renderOrder = -998;
+        sp.frustumCulled = false;
+        cloudG.add(sp);
+      }
+    }
 
     const scene = world.scene;
     if (scene.background?.isColor) scene.background.setHex(p.background);
@@ -337,10 +386,11 @@ export function buildSky(world, { preset = 'afternoon', radius = 50, camera = nu
 
   h.set(preset);
 
-  // the dome is a hat, not a place
+  // the dome is a hat, not a place; the clouds on it drift, slowly
   world.tick((dt, ctx) => {
     const cam = ctx?.camera || camera;
     if (cam) group.position.copy(cam.position);
+    cloudG.rotation.y += dt * 0.0035;
   });
   if (camera) group.position.copy(camera.position);
 

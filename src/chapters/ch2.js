@@ -23,7 +23,7 @@ import { UI, wait } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { scares, TYPE } from '../core/scares.js';
 import { Phone } from '../core/phone.js';
-import { convo, J, SAY, objective, objectiveDone, numb, forceLook } from './util.js';
+import { convo, talk, J, SAY, objective, objectiveDone, numb, forceLook } from './util.js';
 import { setFlag, flag, addMessage, addTape, state } from '../core/state.js';
 import { OSTROWSKI_NOTE, WHITEBOARD } from '../content/docs.js';
 
@@ -101,13 +101,13 @@ async function vignetteSept6(ctx) {
 
   objective('walk her home. it is 4 blocks. it takes an hour.', 's6');
 
-  await convo([
+  await talk(ctx, [
     SAY('RECCA', 'Okay but you have to understand, the entire town is four streets and one of them is a hill.'),
     J('It\'s a big hill.'),
-    SAY('RECCA', 'It is a BIG hill. Thirty-one streetlights. From the college down to the church.'),
-    J('You counted them.'),
-    SAY('RECCA', 'Everybody counted them. It\'s what there is.')
-  ]);
+    SAY('RECCA', 'It is a BIG hill. You counted the lights yet?'),
+    J('Twenty-six. Twenty-seven. I keep losing one.'),
+    SAY('RECCA', 'I told you. It\'s a trap.')
+  ], { focus: recca });
 
   // she walks him home. slowly.
   const target = { x: VASKO.x, z: VASKO.z + 5.6 };
@@ -120,15 +120,15 @@ async function vignetteSept6(ctx) {
       recca.setPos(VASKO.x + 0.85, 0.16, VASKO.z + 4.9);
       recca.face(VASKO.x - 2, VASKO.z + 4.9);
       recca.lookAt(ctx.camera);
-      await convo([
+      await talk(ctx, [
         SAY('RECCA', 'This is me. Nine Kesslerton Row. End unit, which means one extra wall of cold.'),
         J('It\'s nice.'),
         SAY('RECCA', 'It\'s a company house. They built six of them in 1911 and they built them identical so nobody\'d get ideas.'),
         SAY('RECCA', 'Sit for a second. The glider\'s the only good thing my grandfather ever bought.')
-      ]);
+      ], { focus: recca });
       await wait(400);
       // the glider
-      await convo([
+      await talk(ctx, [
         SAY('RECCA', '[they sit. it creaks.]'),
         SAY('RECCA', 'Cold.'),
         J('Your hands?'),
@@ -136,27 +136,27 @@ async function vignetteSept6(ctx) {
         J('Give them here.'),
         SAY('RECCA', '[a pause]'),
         SAY('RECCA', 'Huh.')
-      ]);
+      ], { focus: recca });
       const k = await UI.choose([
         { text: 'Kiss her.', value: 'kiss' },
         { text: 'Wait.', value: 'wait' }
       ]);
       if (k === 'wait') {
-        await convo([
+        await talk(ctx, [
           SAY('RECCA', '[she waits about four seconds]'),
           SAY('RECCA', 'Oh my God.'),
           SAY('RECCA', '[she kisses him]')
-        ]);
+        ], { focus: recca });
       } else {
-        await convo([SAY('RECCA', '[she was already leaning in]')]);
+        await talk(ctx, [SAY('RECCA', '[she was already leaning in]')], { focus: recca });
       }
       await wait(700);
-      await convo([
+      await talk(ctx, [
         SAY('RECCA', 'Okay. Go home, Jared Hale. It\'s a hill and it\'s dark.'),
         J('I\'ll text you when I\'m up.'),
         SAY('RECCA', 'You will not, you\'ll fall asleep. Text me tomorrow.'),
         SAY('RECCA', '[she goes in. she waves through the glass, badly.]')
-      ]);
+      ], { focus: recca });
       objectiveDone('s6');
       addMessage('me', 'made it up the hill', '12:41 AM');
       addMessage('them', 'liar you took the car', '12:44 AM');
@@ -207,37 +207,40 @@ async function vignetteSept19(ctx) {
     }
   });
 
-  await convo([
+  await talk(ctx, [
     SAY('RECCA', 'Ma, this is Jared.'),
     SAY('MARTA', 'Jared! Come in, come in, take your shoes off, the floor\'s cold.'),
     J('Thank you for having me.'),
-    SAY('MARTA', '[to Recca] He says thank you. Where did you find one that says thank you.')
-  ]);
+    SAY('MARTA', '[to Recca] He says thank you. Where did you find one that says thank you.'),
+    SAY('MARTA', 'We\'ve met, actually. Twelve on pump two. He read the plaque.'),
+    SAY('RECCA', 'Ma.'),
+    SAY('MARTA', 'What? He did.')
+  ], { focus: marta });
   marta.lookAt(ctx.camera);
 
-  await convo([
+  await talk(ctx, [
     SAY('MARTA', 'Sit. Sit. There\'s pierogi, there\'s more pierogi, and there\'s a thing with cabbage that you don\'t have to eat.'),
     J('I\'ll eat the cabbage.'),
     SAY('MARTA', 'He\'ll eat the cabbage. Recca. Recca, he\'ll eat the cabbage.'),
     SAY('RECCA', 'I heard.')
-  ]);
+  ], { focus: marta });
 
-  await convo([
+  await talk(ctx, [
     SAY('MARTA', 'So what do they have you studying up there?'),
     J('Nothing, really. Undeclared.'),
     SAY('MARTA', 'Undeclared! That\'s a rich word for it.'),
     SAY('RECCA', 'Ma.'),
     SAY('MARTA', 'What? It\'s a good word. It means he can still be anything.'),
     SAY('MARTA', '[she says this warmly and she means it, and she has known for eleven days exactly what he is going to be]')
-  ]);
+  ], { focus: marta });
 
-  await convo([
+  await talk(ctx, [
     SAY('MARTA', 'Eat, eat. Recca, you\'re not eating.'),
     SAY('RECCA', 'I had something at work.'),
     SAY('MARTA', 'She had something at work.'),
     SAY('RECCA', 'I did!'),
     SAY('MARTA', '[she\'s already wrapping a plate in foil] Take it home then.')
-  ]);
+  ], { focus: marta });
   // she pushes it around. she wraps it up. she does not eat.
   await convo([
     J('[she\'s cut the same pierogi into four pieces and moved them to the edge of the plate]'),
@@ -249,34 +252,34 @@ async function vignetteSept19(ctx) {
     { text: 'Ask about Recca\'s dad.', value: 'dad' },
     { text: 'Say nothing. Eat the cabbage.', value: 'cabbage' }
   ]);
-  if (q === 'plaque') await convo([
+  if (q === 'plaque') await talk(ctx, [
     J('There\'s a plaque outside the Fuel & Go.'),
     SAY('MARTA', '[she does not stop moving]'),
     SAY('MARTA', 'There is.'),
     J('It has my, it has a name on it I know.'),
     SAY('MARTA', 'It has nine names on it, sweetheart. Everybody in this town knows one of them.'),
     SAY('MARTA', 'Eat. It\'s getting cold.')
-  ]);
-  if (q === 'dad') await convo([
+  ], { focus: marta });
+  if (q === 'dad') await talk(ctx, [
     SAY('MARTA', 'Andrej. Ninety-nine. He was forty-two.'),
     J('I\'m sorry.'),
     SAY('MARTA', 'He was a good man who worked at a place that isn\'t there any more. That\'s most of the men here.'),
     SAY('RECCA', '[she doesn\'t look up]'),
     SAY('MARTA', 'Eat.')
-  ]);
-  if (q === 'cabbage') await convo([
+  ], { focus: marta });
+  if (q === 'cabbage') await talk(ctx, [
     SAY('MARTA', '[watching him eat the cabbage]'),
     SAY('MARTA', 'Recca. He\'s eating the cabbage.'),
     SAY('RECCA', 'I have eyes, Ma.')
-  ]);
+  ], { focus: marta });
 
-  await convo([
+  await talk(ctx, [
     SAY('MARTA', '[at the door, with the foil plate] You come back. Any time. You don\'t call first, you just come.'),
     J('Thank you.'),
     SAY('MARTA', '[she holds his hand in both of hers for a second longer than is comfortable]'),
     SAY('MARTA', 'You\'re good for her.'),
     SAY('MARTA', '[she means it]')
-  ]);
+  ], { focus: marta });
   if (!ringOff) {
     await convo([
       J('[she looked at my hand]'),
@@ -392,14 +395,11 @@ async function vignetteSept22(ctx) {
  */
 async function runTheCar(ctx, finish) {
   const { world, refs } = ctx;
-  const car = volvo(world, 8, -0.02, 40, 0, {});
-  car.children.forEach(c => { if (c.material?.color) c.material = c.material.clone(); });
-  world.clearCollidersTagged('car');
+  // it is not his car. it is a small brown sedan and it is going about twenty.
+  const car = volvo(world, 8, -0.02, 40, 0, { color: 0x5a4634, lights: true, collide: false });
   car.position.set(-40, 0, 20.5);
   car.rotation.y = -Math.PI / 2;
-  // it is not his car. it is a small brown sedan and it is going about twenty.
   car.scale.set(0.94, 0.9, 0.92);
-  car.traverse(o => { if (o.isMesh && o.material.color?.getHex?.() === 0x2f3b46) o.material = flat(0x5a4634, { rough: .4, metal: .4 }); });
 
   const head1 = new THREE.PointLight(0xfff0d0, 2.0, 14, 1.6);
   const tail = new THREE.PointLight(0x8C2F26, 1.2, 8, 1.6);
@@ -452,20 +452,20 @@ async function vignetteOct2(ctx) {
   apt.setWhiteboard(WHITEBOARD[0]);
   objective('she is moving in half her things. the good half.', 'o2');
 
-  await convo([
+  await talk(ctx, [
     SAY('RECCA', 'I\'m not moving in. To be clear. This is not moving in.'),
     J('You brought a lamp.'),
     SAY('RECCA', 'You didn\'t HAVE a lamp. You had one bulb in the ceiling like a man in a police station.'),
     J('It\'s a nice lamp.'),
     SAY('RECCA', 'It\'s my grandmother\'s lamp, so be careful with it, and also this is not moving in.')
-  ]);
+  ], { focus: recca });
 
   world.interact(apt.refs.whiteboard, {
     label: 'Whiteboard', dist: 2.2,
     use: () => UI.say('JARED', '"milk, the good kind not the blue one."', { style: 'thought' })
   });
 
-  await convo([
+  await talk(ctx, [
     SAY('RECCA', 'Also I wrote on your fridge. That\'s permanent now. That\'s a permanent feature of the apartment.'),
     J('[her hand, taking the marker back]'),
     J('Your hands are freezing.'),
@@ -477,7 +477,7 @@ async function vignetteOct2(ctx) {
     SAY('RECCA', 'We are a long line of women you should not let touch the back of your neck.'),
     J('Noted.'),
     SAY('RECCA', '[she immediately touches the back of his neck]')
-  ]);
+  ], { focus: recca });
 
   await wait(600);
   await UI.fadeOut(1600);
@@ -507,36 +507,36 @@ async function vignetteOct2(ctx) {
 
   await wait(3800);   // hold. just hold.
 
-  await convo([
+  await talk(ctx, [
     J('...Rec?'),
     SAY('RECCA', '[she doesn\'t turn around]'),
     SAY('RECCA', 'I couldn\'t sleep.'),
     J('You\'ve got your boots on.'),
     SAY('RECCA', '[a pause of about four seconds]'),
     SAY('RECCA', 'I was cold.')
-  ]);
+  ], { focus: recca });
 
   const c = await UI.choose([
     { text: '"Come back to bed."', value: 'bed' },
     { text: '"Where were you?"', value: 'where' },
     { text: 'Turn the light on.', value: 'light' }
   ]);
-  if (c === 'where') await convo([
+  if (c === 'where') await talk(ctx, [
     SAY('RECCA', 'Here.'),
     J('Rec...'),
     SAY('RECCA', 'I was here, Jared.'),
     SAY('RECCA', '[she still hasn\'t turned around]')
-  ]);
-  if (c === 'light') await convo([
+  ], { focus: recca });
+  if (c === 'light') await talk(ctx, [
     SAY('RECCA', 'Don\'t.'),
     SAY('RECCA', '[quickly, and then more gently] Don\'t, it\'s three in the morning, my eyes.'),
     J('Okay.')
-  ]);
-  await convo([
+  ], { focus: recca });
+  await talk(ctx, [
     J('Come back to bed.'),
     SAY('RECCA', '[she does]'),
     SAY('RECCA', '[she does not take the boots off]')
-  ]);
+  ], { focus: recca });
 
   await wait(1400);
   recca.p.legs.forEach(l => { l.hp.rotation.x = 0; l.kn.rotation.x = 0; });
@@ -569,7 +569,7 @@ async function vignetteOct12(ctx) {
 
   objective('take a picture of her. she\'ll hate it.', 'o12');
 
-  await convo([
+  await talk(ctx, [
     SAY('RECCA', 'Dale gives me free coffee because he was at my father\'s funeral, which is a fairly grim reason to get free coffee, but it\'s fifteen years of free coffee so I\'ve made my peace.'),
     J('Fifteen years.'),
     SAY('RECCA', 'Fifteen years. He also gives me the pie. I don\'t eat the pie. I take the pie home.'),
@@ -577,7 +577,7 @@ async function vignetteOct12(ctx) {
     SAY('RECCA', '[without any pause at all] I eat constantly. I\'m eating right now.'),
     J('You\'re holding a fork.'),
     SAY('RECCA', 'That is what eating looks like, Jared.')
-  ]);
+  ], { focus: recca });
 
   // the corkboard, in the background, by the restrooms. nine flyers.
   world.interact(diner.refs.corkboard, {
@@ -588,12 +588,12 @@ async function vignetteOct12(ctx) {
   // ---- the photo ----
   Phone.cameraStage = 1;   // motion blur where she is, while she isn't moving
   Phone.photoCaption = 'the diner. 10/12';
-  await convo([
+  await talk(ctx, [
     J('Hold still.'),
     SAY('RECCA', 'Don\'t.'),
     J('Hold still.'),
     SAY('RECCA', '[she holds still and pulls the worst face she owns]')
-  ]);
+  ], { focus: recca });
 
   UI.toast('phone', 'Tab → Camera');
   let shot = null;
@@ -611,7 +611,7 @@ async function vignetteOct12(ctx) {
 
   scares.fire('ch2.photo', () => { /* mediated. it happens on a screen. never in the room. */ });
 
-  await convo([
+  await talk(ctx, [
     J('...'),
     J('Rec. Look at this.'),
     SAY('RECCA', '[she takes the phone. she looks at it for a while.]'),
@@ -621,7 +621,7 @@ async function vignetteOct12(ctx) {
     J('You weren\'t moving.'),
     SAY('RECCA', '[she laughs, and it is a completely normal laugh]'),
     SAY('RECCA', 'It\'s a hundred-dollar phone from a gas station, baby. Delete it. It\'s an awful picture of me anyway.')
-  ]);
+  ], { focus: recca });
 
   const d = await UI.choose([
     { text: 'Delete it.', value: 'delete' },
@@ -631,18 +631,18 @@ async function vignetteOct12(ctx) {
     setFlag('deletedThePhoto');
     state.set(s => ({ gallery: s.gallery.filter(g => g.id !== shot?.id) }));
     Phone.render();
-    await convo([
+    await talk(ctx, [
       J('[deleted]'),
       SAY('RECCA', 'Thank you.'),
       SAY('RECCA', '[she is still holding his phone]'),
       SAY('RECCA', '[she checks the gallery]')
-    ]);
+    ], { focus: recca });
   } else {
-    await convo([
+    await talk(ctx, [
       SAY('RECCA', 'Fine. Keep it. Keep the picture of the empty chair, that\'s normal.'),
       J('[she\'s laughing]'),
       J('[she is genuinely laughing]')
-    ]);
+    ], { focus: recca });
   }
   Phone.close();
   objectiveDone('o12');

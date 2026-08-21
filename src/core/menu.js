@@ -17,13 +17,18 @@ const el = () => $('#menu');
 let ctx = null;
 export function initMenu(gameCtx) { ctx = gameCtx; }
 
-function show(html, { opaque = false, wide = false } = {}) {
+function show(html, { opaque = false, wide = false, title = false } = {}) {
   const m = el();
   m.classList.remove('hidden');
   m.classList.toggle('opaque', opaque);
   // `wide` is for the screens that are a document rather than a list of
   // six words, so they can use the width instead of running off the bottom
   m.classList.toggle('wide', wide);
+  // `title` is the series frame: full bleed, nothing centred, the world
+  // left showing through everywhere it is not being written on
+  m.classList.toggle('title', title);
+  const s = settings();
+  m.classList.toggle('still', title && !!(s.reduceMotion || s.noFlashing));
   m.innerHTML = `<div class="inner">${html}</div>`;
   releaseLock();
   return m.querySelector('.inner');
@@ -65,24 +70,54 @@ export function warningCard() {
 }
 
 // ============================================================ MAIN
+/* The title screen. The wordmark sits low on the left in two flat
+   colours over the sky, the words you can press are a plain list at
+   eye height on the right, and the small print is in the corner. No
+   plate, no panel, no rule: the plate is Ridge Road at dusk with the
+   streetlights going out, and it stays visible. (doc §8) */
 export async function mainMenu() {
   const saved = await hasSave('auto');
   const s = state.get();
+  const item = (id, label, on = true) =>
+    `<li><button id="${id}" ${on ? '' : 'disabled'}>${label}</button></li>`;
   return new Promise(res => {
     const inner = show(`
-      <div class="eyebrow">NIGHTS WE DON'T TALK ABOUT</div>
-      <h1>KESSLERTON<br>ROW</h1>
-      <div class="rule"></div>
-      <div class="tag">WKRB 1290 AM &nbsp;·&nbsp; SCRANTON</div>
-      <ul>
-        <li><button id="m-cont" ${saved ? '' : 'disabled'}>CONTINUE</button></li>
-        <li><button id="m-new">NEW GAME</button></li>
-        <li><button id="m-ng" ${s.ending ? '' : 'disabled'}>NEW GAME +</button></li>
-        <li><button id="m-chap">CHAPTERS</button></li>
-        <li><button id="m-opt">OPTIONS</button></li>
-        <li><button id="m-cred">CREDITS &amp; SOURCES</button></li>
+      <div class="tear"></div>
+      <div class="tear b"></div>
+
+      <div class="corner">
+        <span class="k">Quality</span>
+        <select id="m-qual" aria-label="Quality">
+          ${['high', 'medium', 'low'].map(q =>
+            `<option value="${q}" ${settings().quality === q ? 'selected' : ''}>${q}</option>`).join('')}
+        </select>
+      </div>
+
+      <div class="wordmark">
+        <p class="over">WKRB 1290 AM &nbsp;·&nbsp; Scranton</p>
+        <h1 class="mark">Kesslerton</h1>
+        <div class="road"><span class="mark">Row</span><span class="bar"></span></div>
+        <p class="ep">Ashgrove, Pennsylvania &nbsp;·&nbsp; 2014</p>
+      </div>
+
+      <ul class="mainnav">
+        ${item('m-cont', 'Continue', saved)}
+        ${item('m-new', 'New Game')}
+        ${item('m-ng', 'New Game +', !!s.ending)}
+        ${item('m-chap', 'Chapters')}
+        ${item('m-opt', 'Options')}
+        ${item('m-cred', 'Credits')}
       </ul>
-      <div class="foot">ASHGROVE, PA &nbsp;·&nbsp; AUG 24 – DEC 21, 2014</div>`);
+
+      <div class="footnote">
+        <span class="ver">v0.9</span>
+        Nights we don't talk about, weeknights after one.<br>
+        <span class="addr">Call the station. Somebody is up.</span>
+      </div>`, { title: true });
+    inner.querySelector('#m-qual').onchange = e => {
+      setSetting('quality', e.target.value);
+      ctx?.onSettingsChanged?.('quality');
+    };
     const pick = (v) => { audio.sfx('click', { vol: .3 }); res(v); };
     inner.querySelector('#m-cont').onclick = () => saved && pick('continue');
     inner.querySelector('#m-new').onclick = () => pick('new');

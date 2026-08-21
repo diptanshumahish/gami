@@ -20,6 +20,57 @@ export const SCALE = {
   eye: 1.66, table: 0.74, seat: 0.45, step: 0.19
 };
 
+/*
+   THE LIGHT POOL
+   --------------
+   Three's forward renderer evaluates EVERY light in the scene for every
+   fragment of every lit material. There is no distance or frustum
+   culling of light SHADING -- only of shadow map redraws, which is a
+   separate thing handled in render.js. A 1.2 metre glint sitting 150
+   metres behind you costs a full BRDF evaluation on every pixel you can
+   see. Chapter three had 53 point lights strung across 220 metres of
+   Ashgrove and was paying for all 53 everywhere.
+
+   The count cannot simply be lowered when the camera moves, because
+   NUM_POINT_LIGHTS is a shader define: adding or removing one light
+   recompiles every material in the scene and stalls for a visible beat.
+
+   So the scene holds a small FIXED set of real lights, and `bulb()`
+   returns a light that is never added to the scene at all. Once a frame
+   the pool copies position, colour, intensity, distance and decay from
+   the virtual lights that can actually reach the frame into its slots.
+   Callers cannot tell the difference: they hold the same PointLight
+   object they always did and set `.intensity` on it as usual.
+*/
+/*
+   Sized from measurement, not taste. Standing on 200 sampled walkable
+   positions per chapter, looking a random way, and counting the pooled
+   lights that had to go unlit despite a significance above SIGNIFICANT:
+
+     pool   chapter 3 lights   views losing a light   worst view
+       12         25                63 / 200               8
+       14         27                47 / 200               9
+       18         31                14 / 200               6
+       20         33                 8 / 200               4
+       24         37                 4 / 200               3
+
+   Chapter three is the only place the cap binds at all; every other
+   chapter has fewer point lights than the cap and is untouched. 20 takes
+   the worst chapter from 56 lights per fragment to about 33 while 96% of
+   sampled views lose nothing, and what the remaining 4% lose is always
+   the least significant light in shot, never the nearest or brightest.
+
+   SIGNIFICANT is the floor below which a light is not worth a slot: a
+   bubble whose radius is a small fraction of its distance, dimmed by its
+   own intensity. Below it we are talking about a few pixels at the far
+   end of the valley.
+*/
+const POOL_SIZE = 20;
+const SIGNIFICANT = 1e-2;
+const _lightFrustum = new THREE.Frustum();
+const _lightProj = new THREE.Matrix4();
+const _lightSphere = new THREE.Sphere();
+
 export class World {
   constructor(scene) {
     this.scene = scene;
@@ -30,7 +81,11 @@ export class World {
     this.interactables = [];  // {mesh, label, dist, use, enabled, hl}
     this.triggers = [];       // {x0,x1,z0,z1,y0,y1,onEnter,onExit,once,inside}
     this.ticks = [];
-    this.lights = [];
+    this.lights = [];         // every light a chapter made, pooled or not
+    this.virtual = [];        // the point lights that go through the pool
+    this.pool = null;
+    this.poolStats = { used: 0, size: 0, starved: 0 };
+    this._lframe = 0;
     this.disposables = [];
   }
 
@@ -41,7 +96,7 @@ export class World {
 
   dispose() {
     this.root.traverse(o => {
-      if (o.geometry) o.geometry.dispose();
+      if (o.geometry && !o.geometry.userData.shared) o.geometry.dispose();
       if (o.material) {
         const ms = Array.isArray(o.material) ? o.material : [o.material];
         ms.forEach(m => { if (m.userData.own) m.dispose(); });
@@ -51,6 +106,9 @@ export class World {
     this.disposables.forEach(f => { try { f(); } catch {} });
     this.colliders.length = this.floors.length = this.interactables.length = 0;
     this.triggers.length = this.ticks.length = this.lights.length = 0;
+    this.virtual.length = 0;
+    this.pool = null;
+    this.poolStats = { used: 0, size: 0, starved: 0 };
   }
 
   add(o) { this.root.add(o); return o; }
@@ -181,7 +239,7 @@ export class World {
       // frame
       const fm = flat(0xd8d2c4, { rough: .8 });
       const bar = (bw, bh, ox, oy) => {
-        const b2 = new THREE.Mesh(new THREE.BoxGeometry(axis === 'x' ? bw : thick + .02, bh, axis === 'x' ? thick + .02 : bw), fm);
+        const b2 = new THREE.Mesh(SHAPE.Box(axis === 'x' ? bw : thick + .02, bh, axis === 'x' ? thick + .02 : bw), fm);
         b2.position.set(cx + (axis === 'x' ? ox : 0), y + sill + wh / 2 + oy, cz + (axis === 'z' ? ox : 0));
         this.add(b2);
       };
@@ -286,13 +344,31 @@ export class World {
   }
 
   // ------------------------------------------------------------ lights
+  /**
+   * A bulb that casts is a real light in the scene, exactly as it always
+   * was: there are only seven of them in the whole game and no more than
+   * six are ever in shot at once, so pooling them could only ever lose a
+   * shadow. render.js decides which of their maps need redrawing.
+   *
+   * A bulb that does not cast is POOLED, and the light this returns is
+   * not in the scene at all -- see the note above the class. Everything a
+   * caller normally does with it (reading and writing `intensity`, moving
+   * it, recolouring it, hanging it off `refs` and switching it at a story
+   * beat) works exactly as before.
+   */
   bulb(x, y, z, { color = 0xFFC58A, intensity = 1.4, dist = 7, shadow = false, size = 0.045, emissive = true, decay = 1.7 } = {}) {
     const l = new THREE.PointLight(color, intensity, dist, decay);
     l.position.set(x, y, z);
-    if (shadow) { l.castShadow = true; l.shadow.mapSize.set(512, 512); l.shadow.bias = -0.0035; l.shadow.camera.far = dist; }
-    this.add(l); this.lights.push(l);
+    if (shadow) {
+      l.castShadow = true; l.shadow.mapSize.set(512, 512); l.shadow.bias = -0.0035; l.shadow.camera.far = dist;
+      this.add(l);
+    } else {
+      this.virtual.push(l);
+      this._growPool();
+    }
+    this.lights.push(l);
     if (emissive) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(size, 8, 6), new THREE.MeshBasicMaterial({ color }));
+      const m = new THREE.Mesh(SHAPE.Sphere(size, 8, 6), new THREE.MeshBasicMaterial({ color }));
       m.position.set(x, y, z); this.add(m);
       l.userData.glow = m;
       // A bulb that has been switched off is not a glowing bead hanging in
@@ -304,6 +380,106 @@ export class World {
       this.tick(() => { m.visible = l.intensity > 0.001; });
     }
     return l;
+  }
+
+  // ------------------------------------------------------------ light pool
+  /**
+   * Grow the pool to match what the chapter actually asked for, up to the
+   * cap. Called from `bulb()`, so it happens during build() while the
+   * screen is still black -- which is where the one-off shader recompile
+   * that comes with changing the scene's light count belongs. A menu
+   * scene with a single bulb gets a single slot, not twenty-four.
+   */
+  _growPool() {
+    const p = this.pool || (this.pool = { slots: [] });
+    const want = Math.min(POOL_SIZE, this.virtual.length);
+    while (p.slots.length < want) {
+      const l = new THREE.PointLight(0xffffff, 0, 1, 2);
+      l.userData.pool = true;
+      this.add(l);
+      p.slots.push({ light: l, owner: null });
+    }
+    this.poolStats.size = p.slots.length;
+  }
+
+  /**
+   * Hand the pool's real lights to whichever virtual lights matter from
+   * here. Call once a frame, before the renderer culls shadows.
+   */
+  updateLights(camera) {
+    const p = this.pool;
+    if (!p || !camera || !p.slots.length) return;
+    const frame = ++this._lframe;
+
+    camera.updateMatrixWorld();
+    _lightProj.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    _lightFrustum.setFromProjectionMatrix(_lightProj);
+    const eye = camera.position;
+
+    /*
+       Score = brightness x the solid angle the lit bubble subtends.
+       A point light reaches exactly `distance` metres and no further, so
+       (r/d)^2 is proportional to how much of the screen it can possibly
+       affect and `intensity` to how hard. Ranking on this keeps the
+       glint at your feet and drops the one across the valley, which is
+       the right way round; ranking on brightness alone did not.
+       Zero means it cannot touch a visible pixel at all -- the influence
+       sphere misses the frustum, or the light is off.
+    */
+    for (const v of this.virtual) {
+      let score = 0;
+      if (v.visible && v.intensity > 0.001) {
+        const r = v.distance > 0 ? v.distance : 0;
+        if (r === 0) score = Infinity;                       // no cutoff: always keep
+        else {
+          _lightSphere.center.copy(v.position);
+          _lightSphere.radius = r;
+          if (_lightFrustum.intersectsSphere(_lightSphere)) {
+            const d = Math.max(0.25, v.position.distanceTo(eye));
+            score = v.intensity * (r / d) * (r / d);
+          }
+        }
+      }
+      v.userData.score = score;
+      v.userData.lframe = frame;
+    }
+
+    // A slot is only ever taken from a light that is contributing
+    // nothing, so a swap can never be seen: the light being evicted was
+    // already dark or already off screen.
+    const assigned = new Set();
+    for (const s of p.slots) {
+      if (s.owner && (s.owner.userData.lframe !== frame || s.owner.userData.score <= 0)) s.owner = null;
+      if (s.owner) assigned.add(s.owner);
+    }
+
+    const queue = [];
+    for (const v of this.virtual) if (v.userData.score > 0 && !assigned.has(v)) queue.push(v);
+    queue.sort((a, b) => b.userData.score - a.userData.score);
+
+    for (const s of p.slots) {
+      if (s.owner || !queue.length) continue;
+      s.owner = queue.shift();
+    }
+
+    let used = 0;
+    for (const s of p.slots) {
+      const L = s.light, o = s.owner;
+      if (!o) { L.intensity = 0; continue; }
+      used++;
+      L.position.copy(o.position);
+      L.color.copy(o.color);
+      L.intensity = o.intensity;
+      L.decay = o.decay;
+      L.distance = o.distance;
+    }
+    this.poolStats.used = used;
+    // Only count a light as starved if it was actually worth having. The
+    // long tail below SIGNIFICANT is a bubble a few pixels across at the
+    // far end of the valley, and losing it is not a thing anyone can see.
+    let starved = 0;
+    for (const v of queue) if (v.userData.score > SIGNIFICANT) starved++;
+    this.poolStats.starved = starved;
   }
 
   hemi(sky = 0x3A4A5C, ground = 0x14100c, i = 0.35) {
@@ -336,8 +512,41 @@ export class World {
 // ---------------------------------------------------------------- geometry cache
 const GEO = new Map();
 export function geo(key, make) {
-  if (!GEO.has(key)) GEO.set(key, make());
+  if (!GEO.has(key)) {
+    const g = make();
+    // World.dispose() walks the scene calling geometry.dispose() on
+    // everything it finds. Everything in this cache is meant to outlive
+    // the chapter that happened to use it first, so it is tagged and
+    // skipped there; without the tag, every chapter change threw away
+    // the GPU buffers of the whole cache and the next one re-uploaded
+    // them.
+    g.userData.shared = true;
+    GEO.set(key, g);
+  }
   return GEO.get(key);
+}
+
+/**
+ * Cached geometry constructors, one per THREE primitive, keyed on the
+ * full argument list.
+ *
+ * The named helpers below (BOX, CYL, SPH, PLN) only cover the arities
+ * the world builders needed early on, so a great deal of the game went
+ * on calling `new THREE.BoxGeometry(...)` directly. That is where the
+ * duplicates were: chapter three alone was holding 48 separate copies of
+ * one 0.075 x 2.18 x 0.022 window mullion, 36 of one small torus, and so
+ * on down a long tail -- 1522 geometry objects that were byte-identical
+ * to another one already in memory, each with its own GPU buffer and its
+ * own vertex array to bind.
+ *
+ * Only use these where the result goes straight into a mesh and is never
+ * touched again. Anything that buckles its own vertices afterwards (the
+ * mine's bare earth in loc_town.js) has to keep its own copy.
+ */
+export const SHAPE = {};
+for (const t of ['Box', 'Plane', 'Cylinder', 'Sphere', 'Cone', 'Torus', 'Circle']) {
+  const Ctor = THREE[`${t}Geometry`];
+  SHAPE[t] = (...a) => geo(`${t}|${a.join('|')}`, () => new Ctor(...a));
 }
 export const BOX = (w, h, d) => geo(`b${w}|${h}|${d}`, () => new THREE.BoxGeometry(w, h, d));
 export const CYL = (r1, r2, h, s = 12) => geo(`c${r1}|${r2}|${h}|${s}`, () => new THREE.CylinderGeometry(r1, r2, h, s));

@@ -7,7 +7,8 @@
    ============================================================ */
 import * as THREE from 'three';
 import { MAT, flat, mat, T, tiled, faceTex, normalOf, hairMat, hairlineY, FACE_W, FACE_ROW } from './mat.js';
-import { BOX, CYL, SPH, PLN, SCALE, geo } from './world.js';
+import { SHAPE, BOX, CYL, SPH, PLN, SCALE, geo } from './world.js';
+import { buildBody } from './body.js';
 
 /** Capsule: a limb segment with ends, so an elbow reads as an elbow. */
 /** A body of revolution from a [radius, height] profile. One mesh, no seams. */
@@ -102,11 +103,11 @@ function jawWidth(t) {
   return JAW_W[JAW_W.length - 1][1];
 }
 
-function headGeo(r, hl = {}, HS = {}) {
+function headGeo(r, hl = {}, HS = {}, seg = 34) {
   const { wide = 1, jaw = 1, nose = 1, chin = 1, brow = 1, vol = 1 } = HS;
   const { long = false, age = 0, female = 0 } = hl;
-  return geo(`head${r}|${long}|${age}|${female}|${wide}|${jaw}|${nose}|${chin}|${brow}|${vol}`, () => {
-    const g = new THREE.SphereGeometry(r, 34, 24, -Math.PI / 2, Math.PI * 2);
+  return geo(`head${r}|${long}|${age}|${female}|${wide}|${jaw}|${nose}|${chin}|${brow}|${vol}|${seg}`, () => {
+    const g = new THREE.SphereGeometry(r, seg, Math.round(seg * 24 / 34), -Math.PI / 2, Math.PI * 2);
     const pos = g.attributes.position;
     const v = new THREE.Vector3(), d = new THREE.Vector3();
     const RB = FACE_ROW.brow, RN = FACE_ROW.nose, RM = FACE_ROW.mouth, RC = FACE_ROW.chin;
@@ -259,7 +260,7 @@ export function smallProp(kind, rnd = Math.random, tint) {
     case 'mug': {
       const b = new THREE.Mesh(CYL(0.042, 0.038, 0.095, 12), flat(col, { rough: .35 }));
       b.position.y = 0.0475; g.add(b);
-      const h = new THREE.Mesh(new THREE.TorusGeometry(0.03, 0.007, 6, 12, Math.PI * 1.4), flat(col, { rough: .35 }));
+      const h = new THREE.Mesh(SHAPE.Torus(0.03, 0.007, 6, 12, Math.PI * 1.4), flat(col, { rough: .35 }));
       h.position.set(0.05, 0.05, 0); h.rotation.y = Math.PI / 2; g.add(h);
       const l = new THREE.Mesh(CYL(0.036, 0.036, 0.004, 12), flat(0x3a2a1c, { rough: .2 }));
       l.position.y = 0.082; g.add(l);
@@ -284,7 +285,7 @@ export function smallProp(kind, rnd = Math.random, tint) {
       const b = new THREE.Mesh(BOX(0.001, 0.001, 0.001), flat(col, { rough: .85 }));
       b.geometry = new THREE.BoxGeometry(w, h, d);
       b.position.y = h / 2; g.add(b);
-      const p = new THREE.Mesh(new THREE.BoxGeometry(w * .94, h * .8, d * .96), flat(0xe6e0cf, { rough: .95 }));
+      const p = new THREE.Mesh(SHAPE.Box(w * .94, h * .8, d * .96), flat(0xe6e0cf, { rough: .95 }));
       p.position.y = h / 2; g.add(p); break;
     }
     case 'paper': {
@@ -298,7 +299,7 @@ export function smallProp(kind, rnd = Math.random, tint) {
     case 'charger': {
       const b = new THREE.Mesh(BOX(0.045, 0.03, 0.045), flat(0xf0f0ee, { rough: .5 }));
       b.position.y = 0.015; g.add(b);
-      const cord = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.004, 5, 14), flat(0xe8e8e6, { rough: .6 }));
+      const cord = new THREE.Mesh(SHAPE.Torus(0.06, 0.004, 5, 14), flat(0xe8e8e6, { rough: .6 }));
       cord.rotation.x = -Math.PI / 2; cord.position.set(0.08, 0.004, 0.02); g.add(cord); break;
     }
     case 'sock': {
@@ -306,7 +307,7 @@ export function smallProp(kind, rnd = Math.random, tint) {
       b.scale.set(1, .55, 1.3); b.position.y = 0.025; g.add(b); break;
     }
     case 'hairtie': {
-      const t = new THREE.Mesh(new THREE.TorusGeometry(0.018, 0.005, 5, 12), flat(0x2b2b30, { rough: .8 }));
+      const t = new THREE.Mesh(SHAPE.Torus(0.018, 0.005, 5, 12), flat(0x2b2b30, { rough: .8 }));
       t.rotation.x = -Math.PI / 2; t.position.y = 0.005; g.add(t); break;
     }
     case 'receipt': {
@@ -414,35 +415,35 @@ export function bed(world, x, y, z, rot = 0, {
   const RAIL_Y = 0.30, LEG = 0.155;
   // legs, set in from the corners the way a bed frame's are
   [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) => {
-    const leg = new THREE.Mesh(new THREE.BoxGeometry(0.07, RAIL_Y, 0.07), woodDark);
+    const leg = new THREE.Mesh(SHAPE.Box(0.07, RAIL_Y, 0.07), woodDark);
     leg.position.set(sx * (w / 2 - 0.05), RAIL_Y / 2, sz * (l / 2 - 0.06));
     g.add(leg);
   });
   // side rails and the foot rail, which is the edge you sit on
   [-1, 1].forEach(s => {
-    const r = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.16, l - 0.02), woodM);
+    const r = new THREE.Mesh(SHAPE.Box(0.055, 0.16, l - 0.02), woodM);
     r.position.set(s * (w / 2 - 0.01), RAIL_Y - 0.06, 0);
     g.add(r);
   });
-  const footRail = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, 0.30, 0.06), woodM);
+  const footRail = new THREE.Mesh(SHAPE.Box(w + 0.06, 0.30, 0.06), woodM);
   footRail.position.set(0, RAIL_Y - 0.02, l / 2 + 0.02);
   g.add(footRail);
   // the slatted base, visible from the side under the mattress
-  const base = new THREE.Mesh(new THREE.BoxGeometry(w - 0.09, 0.035, l - 0.08), woodDark);
+  const base = new THREE.Mesh(SHAPE.Box(w - 0.09, 0.035, l - 0.08), woodDark);
   base.position.y = RAIL_Y - 0.02; g.add(base);
 
   // headboard: a panel between two posts
-  const head = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, 0.46, 0.045), woodM);
+  const head = new THREE.Mesh(SHAPE.Box(w - 0.02, 0.46, 0.045), woodM);
   head.position.set(0, RAIL_Y + 0.32, -l / 2 - 0.03); g.add(head);
   [-1, 1].forEach(s => {
-    const p = new THREE.Mesh(new THREE.BoxGeometry(0.075, RAIL_Y + 0.62, 0.075), woodDark);
+    const p = new THREE.Mesh(SHAPE.Box(0.075, RAIL_Y + 0.62, 0.075), woodDark);
     p.position.set(s * (w / 2 + 0.005), (RAIL_Y + 0.62) / 2, -l / 2 - 0.03);
     g.add(p);
   });
 
   // mattress, overhanging the rails a little, with a fitted sheet on it
   const MT = 0.185, MY = RAIL_Y + 0.02 + MT / 2;
-  const mattress = new THREE.Mesh(new THREE.BoxGeometry(w + 0.02, MT, l - 0.02), flat(sheetCol, { rough: .96 }));
+  const mattress = new THREE.Mesh(SHAPE.Box(w + 0.02, MT, l - 0.02), flat(sheetCol, { rough: .96 }));
   mattress.position.y = MY; g.add(mattress);
 
   if (made) {
@@ -451,44 +452,44 @@ export function bed(world, x, y, z, rot = 0, {
     // thing that makes a bed look like furniture from a catalogue.
     const qTop = MY + MT / 2, qL = l * 0.74;
     const qMat = tiled(quilt, w, qL);
-    const duvet = new THREE.Mesh(new THREE.BoxGeometry(w + 0.05, 0.1, qL), qMat);
+    const duvet = new THREE.Mesh(SHAPE.Box(w + 0.05, 0.1, qL), qMat);
     duvet.position.set(0, qTop + 0.05, l / 2 - qL / 2 - 0.01);
     g.add(duvet);
     [-1, 1].forEach(s => {
-      const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.19, qL), tiled(quilt, 0.4, 0.19));
+      const skirt = new THREE.Mesh(SHAPE.Box(0.05, 0.19, qL), tiled(quilt, 0.4, 0.19));
       skirt.position.set(s * (w / 2 + 0.025), qTop - 0.05, l / 2 - qL / 2 - 0.01);
       g.add(skirt);
     });
     // the foot of the duvet, tucked over the end
-    const footFold = new THREE.Mesh(new THREE.BoxGeometry(w + 0.05, 0.2, 0.06), tiled(quilt, w, 0.2));
+    const footFold = new THREE.Mesh(SHAPE.Box(w + 0.05, 0.2, 0.06), tiled(quilt, w, 0.2));
     footFold.position.set(0, qTop - 0.04, l / 2 - 0.02); g.add(footFold);
     // turned-back top sheet
-    const fold = new THREE.Mesh(new THREE.BoxGeometry(w + 0.04, 0.055, 0.2), flat(sheetCol, { rough: .96 }));
+    const fold = new THREE.Mesh(SHAPE.Box(w + 0.04, 0.055, 0.2), flat(sheetCol, { rough: .96 }));
     fold.position.set(0, qTop + 0.075, l / 2 - qL - 0.06); g.add(fold);
 
     // pillows: two side by side if the bed is wide enough for two
     const pair = w > 0.9;
     const pw = pair ? Math.min(0.44, w * 0.46) : Math.min(0.46, w * 0.72);
     (pair ? [-1, 1] : [0]).forEach((s, i) => {
-      const p = new THREE.Mesh(new THREE.BoxGeometry(pw, 0.115, 0.3), flat(sheetCol, { rough: .97 }));
+      const p = new THREE.Mesh(SHAPE.Box(pw, 0.115, 0.3), flat(sheetCol, { rough: .97 }));
       p.position.set(s * (pw / 2 + 0.02), qTop + 0.06, -l / 2 + 0.24 + i * 0.015);
       p.rotation.y = (i - 0.5) * 0.07;
       g.add(p);
     });
     if (throwOver) {
-      const th = new THREE.Mesh(new THREE.BoxGeometry(w + 0.07, 0.045, 0.42), flat(0x7a5a44, { rough: .98 }));
+      const th = new THREE.Mesh(SHAPE.Box(w + 0.07, 0.045, 0.42), flat(0x7a5a44, { rough: .98 }));
       th.position.set(0, qTop + 0.13, l / 2 - 0.34); g.add(th);
       [-1, 1].forEach(s => {
-        const hang = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.26, 0.42), flat(0x7a5a44, { rough: .98 }));
+        const hang = new THREE.Mesh(SHAPE.Box(0.045, 0.26, 0.42), flat(0x7a5a44, { rough: .98 }));
         hang.position.set(s * (w / 2 + 0.03), qTop - 0.02, l / 2 - 0.34); g.add(hang);
       });
     }
   } else {
     // unmade: the duvet in a heap, pushed to one side
-    const heap = new THREE.Mesh(new THREE.BoxGeometry(w * 0.8, 0.22, l * 0.5), tiled(quilt, w, l * 0.5));
+    const heap = new THREE.Mesh(SHAPE.Box(w * 0.8, 0.22, l * 0.5), tiled(quilt, w, l * 0.5));
     heap.position.set(w * 0.08, MY + MT / 2 + 0.11, l * 0.1);
     heap.rotation.y = 0.06; g.add(heap);
-    const p = new THREE.Mesh(new THREE.BoxGeometry(Math.min(0.44, w * 0.5), 0.115, 0.3), flat(sheetCol, { rough: .97 }));
+    const p = new THREE.Mesh(SHAPE.Box(Math.min(0.44, w * 0.5), 0.115, 0.3), flat(sheetCol, { rough: .97 }));
     p.position.set(-w * 0.14, MY + MT / 2 + 0.06, -l / 2 + 0.27);
     p.rotation.y = 0.22; g.add(p);
   }
@@ -502,7 +503,7 @@ export function bed(world, x, y, z, rot = 0, {
 
 export function desk(world, x, y, z, rot = 0, { w = 1.2, d = 0.6, h = 0.74 } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const top = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), flat(0x6a4a30, { rough: .5 }));
+  const top = new THREE.Mesh(SHAPE.Box(w, 0.04, d), flat(0x6a4a30, { rough: .5 }));
   top.position.y = h; g.add(top);
   [[-w / 2 + .05, -d / 2 + .05], [w / 2 - .05, -d / 2 + .05], [-w / 2 + .05, d / 2 - .05], [w / 2 - .05, d / 2 - .05]].forEach(([lx, lz]) => {
     const l = new THREE.Mesh(BOX(0.05, h, 0.05), flat(0x5a3e28, { rough: .6 }));
@@ -530,10 +531,10 @@ export function chair(world, x, y, z, rot = 0, col = 0x5a3e28) {
 export function sofa(world, x, y, z, rot = 0, { w = 1.9, plastic = false } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
   const m = plastic ? flat(0xa8a49a, { rough: .18 }) : flat(0x6d5a44, { rough: .95 });
-  const base = new THREE.Mesh(new THREE.BoxGeometry(w, 0.4, 0.85), m); base.position.y = 0.2; g.add(base);
-  const cush = new THREE.Mesh(new THREE.BoxGeometry(w - 0.2, 0.16, 0.72), m); cush.position.set(0, 0.48, 0.03); g.add(cush);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(w, 0.55, 0.2), m); back.position.set(0, 0.62, -0.33); g.add(back);
-  [-1, 1].forEach(s => { const a = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.32, 0.85), m); a.position.set(s * (w / 2 - 0.09), 0.56, 0); g.add(a); });
+  const base = new THREE.Mesh(SHAPE.Box(w, 0.4, 0.85), m); base.position.y = 0.2; g.add(base);
+  const cush = new THREE.Mesh(SHAPE.Box(w - 0.2, 0.16, 0.72), m); cush.position.set(0, 0.48, 0.03); g.add(cush);
+  const back = new THREE.Mesh(SHAPE.Box(w, 0.55, 0.2), m); back.position.set(0, 0.62, -0.33); g.add(back);
+  [-1, 1].forEach(s => { const a = new THREE.Mesh(SHAPE.Box(0.18, 0.32, 0.85), m); a.position.set(s * (w / 2 - 0.09), 0.56, 0); g.add(a); });
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.add(g);
   const across = Math.abs(Math.sin(rot)) > 0.5;
@@ -543,11 +544,11 @@ export function sofa(world, x, y, z, rot = 0, { w = 1.9, plastic = false } = {})
 
 export function counter(world, x, y, z, w, d, rot = 0, { h = SCALE.counter, top = 0x3f3a34, body = 0xc9c2b2 } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h - 0.04, d), flat(body, { rough: .6 })); b.position.y = (h - 0.04) / 2; g.add(b);
-  const t = new THREE.Mesh(new THREE.BoxGeometry(w + 0.03, 0.04, d + 0.03), flat(top, { rough: .3 })); t.position.y = h - 0.02; g.add(t);
+  const b = new THREE.Mesh(SHAPE.Box(w, h - 0.04, d), flat(body, { rough: .6 })); b.position.y = (h - 0.04) / 2; g.add(b);
+  const t = new THREE.Mesh(SHAPE.Box(w + 0.03, 0.04, d + 0.03), flat(top, { rough: .3 })); t.position.y = h - 0.02; g.add(t);
   const n = Math.max(1, Math.round(w / 0.55));
   for (let i = 0; i < n; i++) {
-    const dr = new THREE.Mesh(new THREE.BoxGeometry(w / n - 0.03, h * .42, 0.02), flat(body === 0xc9c2b2 ? 0xbdb5a3 : body, { rough: .55 }));
+    const dr = new THREE.Mesh(SHAPE.Box(w / n - 0.03, h * .42, 0.02), flat(body === 0xc9c2b2 ? 0xbdb5a3 : body, { rough: .55 }));
     dr.position.set(-w / 2 + w / n * (i + .5), h * .55, d / 2 + 0.005); g.add(dr);
     const hd = new THREE.Mesh(CYL(0.008, 0.008, w / n * 0.4, 6), flat(0x9aa0a4, { rough: .3, metal: .7 }));
     hd.rotation.z = Math.PI / 2; hd.position.set(-w / 2 + w / n * (i + .5), h * .55, d / 2 + 0.02); g.add(hd);
@@ -562,9 +563,9 @@ export function counter(world, x, y, z, w, d, rot = 0, { h = SCALE.counter, top 
 export function fridge(world, x, y, z, rot = 0, { h = 1.42, w = 0.58, d = 0.58, mini = false } = {}) {
   const hh = mini ? 0.85 : h;
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const b = new THREE.Mesh(new THREE.BoxGeometry(w, hh, d), flat(0xe4e2dc, { rough: .35, metal: .1 }));
+  const b = new THREE.Mesh(SHAPE.Box(w, hh, d), flat(0xe4e2dc, { rough: .35, metal: .1 }));
   b.position.y = hh / 2; g.add(b);
-  const dr = new THREE.Mesh(new THREE.BoxGeometry(w - 0.02, hh * .62, 0.02), flat(0xeceae4, { rough: .3 }));
+  const dr = new THREE.Mesh(SHAPE.Box(w - 0.02, hh * .62, 0.02), flat(0xeceae4, { rough: .3 }));
   dr.position.set(0, hh * .32, d / 2 + 0.011); g.add(dr);
   const hn = new THREE.Mesh(BOX(0.03, hh * .4, 0.03), flat(0xb8bcbe, { rough: .25, metal: .7 }));
   hn.position.set(w / 2 - 0.08, hh * .35, d / 2 + 0.04); g.add(hn);
@@ -576,16 +577,16 @@ export function fridge(world, x, y, z, rot = 0, { h = 1.42, w = 0.58, d = 0.58, 
 export function shelfUnit(world, x, y, z, rot = 0, { w = 0.8, h = 1.6, d = 0.28, shelves = 4, books = true, seed = 3 } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
   const m = flat(0x5b4028, { rough: .7 });
-  [-1, 1].forEach(s => { const p = new THREE.Mesh(new THREE.BoxGeometry(0.03, h, d), m); p.position.set(s * (w / 2), h / 2, 0); g.add(p); });
+  [-1, 1].forEach(s => { const p = new THREE.Mesh(SHAPE.Box(0.03, h, d), m); p.position.set(s * (w / 2), h / 2, 0); g.add(p); });
   const rnd = R(seed * 7919);
   for (let i = 0; i <= shelves; i++) {
     const sy = i * (h / shelves);
-    const sh = new THREE.Mesh(new THREE.BoxGeometry(w, 0.025, d), m); sh.position.set(0, sy, 0); g.add(sh);
+    const sh = new THREE.Mesh(SHAPE.Box(w, 0.025, d), m); sh.position.set(0, sy, 0); g.add(sh);
     if (books && i < shelves) {
       let bx = -w / 2 + 0.04;
       while (bx < w / 2 - 0.06) {
         const bw = 0.018 + rnd() * 0.026, bh = 0.16 + rnd() * 0.07;
-        const b = new THREE.Mesh(new THREE.BoxGeometry(bw, bh, d * .8), flat(PALETTE[Math.floor(rnd() * PALETTE.length)], { rough: .9 }));
+        const b = new THREE.Mesh(SHAPE.Box(bw, bh, d * .8), flat(PALETTE[Math.floor(rnd() * PALETTE.length)], { rough: .9 }));
         b.position.set(bx + bw / 2, sy + bh / 2 + 0.013, 0);
         if (rnd() > .9) { b.rotation.z = 0.25; b.position.y -= 0.01; }
         g.add(b); bx += bw + 0.004;
@@ -599,14 +600,14 @@ export function shelfUnit(world, x, y, z, rot = 0, { w = 0.8, h = 1.6, d = 0.28,
 
 export function mirror(world, x, y, z, rot = 0, { w = 0.55, h = 1.55, sheeted = false } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(w + 0.06, h + 0.06, 0.04), flat(0x4a3524, { rough: .6 }));
+  const frame = new THREE.Mesh(SHAPE.Box(w + 0.06, h + 0.06, 0.04), flat(0x4a3524, { rough: .6 }));
   g.add(frame);
   const glassMat = new THREE.MeshStandardMaterial({ color: 0x8d9aa4, roughness: 0.06, metalness: 0.92, envMapIntensity: 1 });
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassMat);
+  const glass = new THREE.Mesh(SHAPE.Plane(w, h), glassMat);
   glass.position.z = 0.021; g.add(glass);
   let sheet = null;
   if (sheeted) {
-    sheet = new THREE.Mesh(new THREE.PlaneGeometry(w + 0.14, h + 0.12), flat(0xdad5c8, { rough: 1, side: THREE.DoubleSide }));
+    sheet = new THREE.Mesh(SHAPE.Plane(w + 0.14, h + 0.12), flat(0xdad5c8, { rough: 1, side: THREE.DoubleSide }));
     sheet.position.z = 0.035; sheet.rotation.z = 0.02; g.add(sheet);
   }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -616,11 +617,11 @@ export function mirror(world, x, y, z, rot = 0, { w = 0.55, h = 1.55, sheeted = 
 
 export function corkboard(world, x, y, z, rot = 0, { w = 0.9, h = 0.66, pins = 9, seed = 5, photo = true } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.025), flat(0x9a7a4e, { rough: .95 })); g.add(b);
+  const b = new THREE.Mesh(SHAPE.Box(w, h, 0.025), flat(0x9a7a4e, { rough: .95 })); g.add(b);
   const rnd = R(seed * 104729);
   for (let i = 0; i < pins; i++) {
     const pw = 0.07 + rnd() * 0.06, ph = 0.09 + rnd() * 0.05;
-    const p = new THREE.Mesh(new THREE.PlaneGeometry(pw, ph), flat(photo ? 0xd6cfc0 : 0xf1ede2, { rough: .95 }));
+    const p = new THREE.Mesh(SHAPE.Plane(pw, ph), flat(photo ? 0xd6cfc0 : 0xf1ede2, { rough: .95 }));
     p.position.set((rnd() - .5) * (w - pw - 0.05), (rnd() - .5) * (h - ph - 0.05), 0.014);
     p.rotation.z = (rnd() - .5) * 0.28; g.add(p);
     const t = new THREE.Mesh(SPH(0.008, 6), flat([0xd0403a, 0x3a6fd0, 0xd0b03a][Math.floor(rnd() * 3)], { rough: .3 }));
@@ -650,10 +651,10 @@ export function cardboardBox(world, x, y, z, rot = 0, {
   const cardDark = flat(shade(tint, 0.82), { rough: .97 });
   const tape = flat(0xc3b795, { rough: .5 });
 
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), card);
+  const body = new THREE.Mesh(SHAPE.Box(w, h, d), card);
   body.position.y = h / 2; g.add(body);
   // the inside, so an open box is not a solid block with a lid ajar
-  const inner = new THREE.Mesh(new THREE.BoxGeometry(w - 0.03, h - 0.03, d - 0.03), flat(shade(tint, 0.5), { rough: 1 }));
+  const inner = new THREE.Mesh(SHAPE.Box(w - 0.03, h - 0.03, d - 0.03), flat(shade(tint, 0.5), { rough: 1 }));
   inner.position.y = h / 2 + 0.02; g.add(inner);
 
   const FT = 0.008;
@@ -681,10 +682,10 @@ export function cardboardBox(world, x, y, z, rot = 0, {
   const lidB = flap(true, 1, d / 2 - 0.008);
   if (!open) {
     lidA.position.y += FT; lidB.position.y += FT;
-    const t = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.004, d + 0.01), tape);
+    const t = new THREE.Mesh(SHAPE.Box(0.045, 0.004, d + 0.01), tape);
     t.position.set(0, h + FT * 1.75, 0); g.add(t);
     [-1, 1].forEach(sg => {
-      const side = new THREE.Mesh(new THREE.BoxGeometry(0.045, 0.05, 0.004), tape);
+      const side = new THREE.Mesh(SHAPE.Box(0.045, 0.05, 0.004), tape);
       side.position.set(0, h - 0.025, sg * (d / 2 + 0.003));
       g.add(side);
     });
@@ -699,7 +700,7 @@ export function cardboardBox(world, x, y, z, rot = 0, {
     c2.font = 'bold 34px "JetBrains Mono", monospace';
     c2.textAlign = 'center';
     c2.fillText(label, 128, 44);
-    const lm = new THREE.Mesh(new THREE.PlaneGeometry(w * 0.9, w * 0.9 / 4), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(lc), roughness: .97 }));
+    const lm = new THREE.Mesh(SHAPE.Plane(w * 0.9, w * 0.9 / 4), new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(lc), roughness: .97 }));
     lm.position.set(0, h * 0.42, d / 2 + 0.004);
     g.add(lm);
   }
@@ -715,13 +716,13 @@ export function cardboardBox(world, x, y, z, rot = 0, {
 
 export function woodStove(world, x, y, z, rot = 0) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.72, 0.5), flat(0x2b2724, { rough: .55, metal: .3 }));
+  const body = new THREE.Mesh(SHAPE.Box(0.62, 0.72, 0.5), flat(0x2b2724, { rough: .55, metal: .3 }));
   body.position.y = 0.42; g.add(body);
   const legs = [[-.24, -.18], [.24, -.18], [-.24, .18], [.24, .18]];
   legs.forEach(([lx, lz]) => { const l = new THREE.Mesh(BOX(0.05, 0.12, 0.05), flat(0x241f1c)); l.position.set(lx, 0.06, lz); g.add(l); });
-  const door = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.3, 0.02), flat(0x1d1a18, { rough: .5, metal: .4 }));
+  const door = new THREE.Mesh(SHAPE.Box(0.34, 0.3, 0.02), flat(0x1d1a18, { rough: .5, metal: .4 }));
   door.position.set(0, 0.42, 0.255); g.add(door);
-  const fire = new THREE.Mesh(new THREE.PlaneGeometry(0.26, 0.2), new THREE.MeshBasicMaterial({ color: 0xE8722A, transparent: true, opacity: .85 }));
+  const fire = new THREE.Mesh(SHAPE.Plane(0.26, 0.2), new THREE.MeshBasicMaterial({ color: 0xE8722A, transparent: true, opacity: .85 }));
   fire.position.set(0, 0.42, 0.268); g.add(fire);
   const pipe = new THREE.Mesh(CYL(0.08, 0.08, 1.6, 10), flat(0x39332e, { rough: .6, metal: .35 }));
   pipe.position.y = 1.58; g.add(pipe);
@@ -742,12 +743,12 @@ export function dryerBank(world, x, y, z, n, rot = 0, { spacing = 0.72 } = {}) {
   const doors = [];
   for (let i = 0; i < n; i++) {
     const px = -((n - 1) * spacing) / 2 + i * spacing;
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.9, 0.66), tiled(MAT.metal, 0.68, 0.9));
+    const body = new THREE.Mesh(SHAPE.Box(0.68, 0.9, 0.66), tiled(MAT.metal, 0.68, 0.9));
     body.position.set(px, 0.45, 0); g.add(body);
-    const upper = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.88, 0.66), tiled(MAT.metal, 0.68, 0.88));
+    const upper = new THREE.Mesh(SHAPE.Box(0.68, 0.88, 0.66), tiled(MAT.metal, 0.68, 0.88));
     upper.position.set(px, 1.36, 0); g.add(upper);
     [0.45, 1.36].forEach((yy, k) => {
-      const ring = new THREE.Mesh(new THREE.TorusGeometry(0.2, 0.028, 8, 20), flat(0xb2b6b8, { rough: .3, metal: .6 }));
+      const ring = new THREE.Mesh(SHAPE.Torus(0.2, 0.028, 8, 20), flat(0xb2b6b8, { rough: .3, metal: .6 }));
       ring.position.set(px, yy, 0.335); g.add(ring);
       const win = new THREE.Mesh(CYL(0.185, 0.185, 0.012, 20), flat(0x14171a, { rough: .1, metal: .1 }));
       win.rotation.x = Math.PI / 2; win.position.set(px, yy, 0.332); g.add(win);
@@ -755,7 +756,7 @@ export function dryerBank(world, x, y, z, n, rot = 0, { spacing = 0.72 } = {}) {
       drum.rotation.x = Math.PI / 2; drum.position.set(px, yy, 0.325); g.add(drum);
       doors.push({ ring, win, drum, running: (i + k) % 3 !== 2 });
     });
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.1, 0.04), flat(0xd8d4c8, { rough: .5 }));
+    const panel = new THREE.Mesh(SHAPE.Box(0.6, 0.1, 0.04), flat(0xd8d4c8, { rough: .5 }));
     panel.position.set(px, 1.83, 0.32); g.add(panel);
   }
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -778,11 +779,11 @@ export function dryerBank(world, x, y, z, n, rot = 0, { spacing = 0.72 } = {}) {
 export function pew(world, x, y, z, rot = 0, w = 3.0) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
   const m = tiled(MAT.pew, w, 0.5);
-  const seat = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, 0.42), m); seat.position.set(0, 0.45, 0); g.add(seat);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(w, 0.62, 0.05), m); back.position.set(0, 0.72, -0.2); g.add(back);
-  const kneel = new THREE.Mesh(new THREE.BoxGeometry(w, 0.05, 0.16), m); kneel.position.set(0, 0.15, 0.3); g.add(kneel);
+  const seat = new THREE.Mesh(SHAPE.Box(w, 0.06, 0.42), m); seat.position.set(0, 0.45, 0); g.add(seat);
+  const back = new THREE.Mesh(SHAPE.Box(w, 0.62, 0.05), m); back.position.set(0, 0.72, -0.2); g.add(back);
+  const kneel = new THREE.Mesh(SHAPE.Box(w, 0.05, 0.16), m); kneel.position.set(0, 0.15, 0.3); g.add(kneel);
   [-1, 1].forEach(s => {
-    const e = new THREE.Mesh(new THREE.BoxGeometry(0.07, 1.05, 0.5), m);
+    const e = new THREE.Mesh(SHAPE.Box(0.07, 1.05, 0.5), m);
     e.position.set(s * (w / 2 - 0.035), 0.52, -0.02); g.add(e);
   });
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
@@ -801,7 +802,7 @@ export function oilLamp(world, x, y, z, index) {
   const chimney = new THREE.Mesh(CYL(0.055, 0.075, 0.24, 12), new THREE.MeshPhysicalMaterial({ color: 0xd8cbb2, roughness: .12, transmission: .7, transparent: true, opacity: .45 }));
   chimney.position.y = 1.5; g.add(chimney);
   const flameMat = new THREE.MeshBasicMaterial({ color: 0xD4762E, transparent: true, opacity: 0.95 });
-  const flame = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.085, 8), flameMat);
+  const flame = new THREE.Mesh(SHAPE.Cone(0.022, 0.085, 8), flameMat);
   flame.position.y = 1.47; g.add(flame);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.add(g);
@@ -844,13 +845,13 @@ export function gerald(world, x, y, z, rot = 0) {
   body.scale.set(1, 0.9, 1.5); body.position.y = 0.07; g.add(body);
   const head = new THREE.Mesh(SPH(0.035, 10), flat(0x7a6a50, { rough: .95 }));
   head.position.set(0, 0.125, 0.06); g.add(head);
-  const beak = new THREE.Mesh(new THREE.ConeGeometry(0.011, 0.035, 6), flat(0xc8a44a, { rough: .5 }));
+  const beak = new THREE.Mesh(SHAPE.Cone(0.011, 0.035, 6), flat(0xc8a44a, { rough: .5 }));
   beak.rotation.x = Math.PI / 2; beak.position.set(0, 0.122, 0.098); g.add(beak);
   [-1, 1].forEach(s => {
     const e = new THREE.Mesh(SPH(0.006, 6), flat(0x0d0c0b, { rough: .1 }));
     e.position.set(s * 0.019, 0.134, 0.082); g.add(e);
   });
-  const tail = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.008, 0.09), flat(0x5b4c39, { rough: .95 }));
+  const tail = new THREE.Mesh(SHAPE.Box(0.04, 0.008, 0.09), flat(0x5b4c39, { rough: .95 }));
   tail.position.set(0, 0.07, -0.11); g.add(tail);
   const perch = new THREE.Mesh(CYL(0.035, 0.04, 0.02, 10), flat(0x4a3524, { rough: .7 }));
   perch.position.y = 0.01; g.add(perch);
@@ -861,7 +862,7 @@ export function gerald(world, x, y, z, rot = 0) {
 
 export function recordPlayer(world, x, y, z, rot = 0, { dusty = false } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const base = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.11, 0.36), flat(0x3f2f22, { rough: .55 }));
+  const base = new THREE.Mesh(SHAPE.Box(0.42, 0.11, 0.36), flat(0x3f2f22, { rough: .55 }));
   base.position.y = 0.055; g.add(base);
   const platter = new THREE.Mesh(CYL(0.15, 0.15, 0.012, 24), flat(0x2a2a2c, { rough: .35, metal: .3 }));
   platter.position.set(0, 0.117, 0.01); g.add(platter);
@@ -880,12 +881,12 @@ export function recordPlayer(world, x, y, z, rot = 0, { dusty = false } = {}) {
 
 export function tv(world, x, y, z, rot = 0, { w = 0.62, h = 0.48, staticOn = true } = {}) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, 0.42), flat(0x2a2b2d, { rough: .6 }));
+  const body = new THREE.Mesh(SHAPE.Box(w, h, 0.42), flat(0x2a2b2d, { rough: .6 }));
   body.position.y = h / 2; g.add(body);
   const st = T.staticnoise();
   const screenMat = new THREE.MeshBasicMaterial({ map: st.clone(), color: 0xffffff });
   screenMat.map.needsUpdate = true;
-  const screen = new THREE.Mesh(new THREE.PlaneGeometry(w - 0.09, h - 0.09), screenMat);
+  const screen = new THREE.Mesh(SHAPE.Plane(w - 0.09, h - 0.09), screenMat);
   screen.position.set(0, h / 2, 0.212); g.add(screen);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.add(g);
@@ -1072,107 +1073,53 @@ export function hairRig(headG, {
 
 // ============================================================ PEOPLE
 /**
- * Mid-poly humanoid. Still primitives, but primitives that agree with a
- * skeleton: soft masses for the ribcage/waist/pelvis, capsules for the
- * limbs so a joint is a joint and not a corner, hands with fingers, a
- * face with a nose and eyelids, and feet whose soles land on y = 0.
+ * A person. One skinned body from body.js, wearing whatever the outfit
+ * says, with the head, hair and glasses hung on its bones here.
  *
  * The rig contract has not changed: hips / torso / headG / jaw /
- * arms[].sh,.el / legs[].hp,.kn are the same groups chapters pose.
+ * arms[].sh,.el,.hand,.fingers,.thumbG / legs[].hp,.kn,.ankle are the
+ * same objects chapters pose, they are just Bones now, and the skin
+ * follows them instead of a part rotating against its neighbour.
+ *
+ * Clothes: `top` may be a colour (legacy) or { style, color, color2 };
+ * `topStyle` picks hoodie | jacket | flannel | sweater | shirt | coat
+ * for a plain colour. `bottom` + `pantsStyle` (jeans | trouser | khaki),
+ * `boots` + `shoeStyle` (boot | shoe | sneaker | loafer). `coat: true`
+ * is the barn coat; a colour is a coat in that colour.
  */
 export function humanoid({
   height = 1.7, skin = 0xd8b49a, hair = 0x8a6b45, top = 0x5a6070, bottom = 0x2f3540,
   coat = null, boots = 0x3a2f26, build = 1.0, hairLong = true,
+  topStyle = null, pantsStyle = 'jeans', shoeStyle = 'boot', top2 = null, hood = false,
   face = null,             // { iris, lipCol, stubble, age, brow } for the painted face
   female = 0,              // 0..1: the whole silhouette, not a swapped texture
   hairStyle = null,        // 'short' | 'crop' | 'bob' | 'bun' | 'long' | 'wave' | 'ponytail'
   head = null,             // { wide, jaw, nose, chin } to stop everyone sharing a skull
   age = 0,                 // 0..1: stoop, softer shoulders, a slower spine
   bun = false,             // hair up, which is most women over sixty here
-  glasses = null           // frame colour, or null
+  glasses = null,          // frame colour, or null
+  detail = 'high'          // 'low' for the pavement: fewer rings, a mitten, no ears
 } = {}) {
-  const g = new THREE.Group();
   const s = height / 1.7;
   const M = (c, r = .92) => flat(c, { rough: r });
-  const SK = M(skin, .74);
-  const topM = M(top, .95), botM = M(bottom, .95), bootM = M(boots, .88);
-  const dark = (c, f = 0.82) => new THREE.Color(c).multiplyScalar(f).getHex();
-  // an ellipsoid, which is the cheapest thing that reads as flesh under cloth
-  const blob = (m, w, h, d, seg = 12) => {
-    const o = new THREE.Mesh(SPH(0.5, seg), m); o.scale.set(w, h, d); return o;
-  };
-
+  const hi = detail !== 'low';
   const fm = female;
-  const wob = 1 + age * 0.10;
-  const K = `${build}|${fm}|${age}|${s.toFixed(4)}`;   // geometry cache key
 
-  // Everything below is laid out against a 1.7 m figure and then scaled,
-  // so the landmarks land where a person's do: crotch at 0.47 of height,
-  // knee at 0.285, shoulder at 0.82, chin at 0.87. Getting these wrong is
-  // most of what makes a game character read as a doll.
-  const hips = new THREE.Group(); hips.position.y = 0.94 * s; g.add(hips);
-  const torso = new THREE.Group(); hips.add(torso);
-  torso.rotation.x = age * 0.085;              // the spine gives up first
+  // ---- what they have on
+  const topO = (top && typeof top === 'object') ? top
+    : coat ? { style: 'coat', color: coat === true ? 0x7a6a52 : coat }
+    : { style: topStyle || 'jacket', color: top, color2: top2, hood };
+  const pantsO = (bottom && typeof bottom === 'object') ? bottom : { style: pantsStyle, color: bottom };
+  const shoeO = (boots && typeof boots === 'object') ? boots : { style: shoeStyle, color: boots };
 
-  // ---- trunk. Two turned forms -- what she has on below the waist and
-  // what she has on above it -- and the top is cut wider than the hip it
-  // covers, so they overlap the way cloth does instead of stepping the
-  // way a stack of primitives does.
-  const pelvis = new THREE.Mesh(trunkGeo([
-    [0.026, -0.160], [0.080, -0.142], [0.108, -0.114], [0.126, -0.072],
-    [0.134 + fm * 0.004, -0.026], [0.130 - fm * 0.006, 0.012],
-    [0.116 - fm * 0.014, 0.046], [0.100 - fm * 0.016, 0.074],
-    [0.082 - fm * 0.014, 0.092]
-  ].map(([r, y]) => [r * s, y * s]), {
-    w: build, d: 0.72, seat: [-0.028 * s, (0.006 + fm * 0.012) * s], key: `pv${K}`
-  }), botM);
-  torso.add(pelvis);
+  const body = buildBody({
+    height, build, female, age, skin, top: topO, pants: pantsO, shoe: shoeO,
+    detail, atlasSize: hi ? 512 : 256
+  });
+  const g = body.g;
+  const { hips, torso, chest, neckPivot, headG } = body.bones;
+  body.rest();
 
-  // The bust, the waist and the shoulders are pushed out of the turned
-  // form instead of bolted onto it. A sphere stuck on the front of a tube
-  // is the thing that reads as shapes clipped together, and it only ever
-  // survives from the one angle it was aimed at.
-  const chest = new THREE.Mesh(trunkGeo([
-    [0.094, -0.268], [0.126, -0.258], [0.143, -0.238], [0.149, -0.200],
-    [0.150, -0.144], [0.148, -0.080], [0.142, -0.016],
-    [0.128 - fm * 0.013, 0.048], [0.124 - fm * 0.017, 0.092],
-    [0.127 - fm * 0.012, 0.148], [0.137 - fm * 0.005, 0.206],
-    [0.146 * wob, 0.262], [0.150 * wob, 0.318], [0.153, 0.376],
-    [0.152, 0.428], [0.141, 0.470], [0.114, 0.506], [0.080, 0.530], [0.054, 0.541]
-  ].map(([r, y]) => [r * s, y * s]), {
-    w: build, d: 0.70,
-    bust: fm > 0.15 ? [0.238 * s, (0.020 + fm * 0.026) * s, 0.086 * s] : null,
-    seat: [-0.052 * s, (0.010 + fm * 0.022) * s],
-    belly: age * 0.12,
-    shoulder: [0.448 * s, (0.036 - fm * 0.005) * build * s],
-    key: `ch${K}`
-  }), topM);
-  torso.add(chest);
-
-  // The neck runs from inside the collar up into the jaw, flaring at both
-  // ends. A straight cylinder between a body and a head is a bolt.
-  const neck = new THREE.Mesh(LATHE([
-    [0.030, -0.075], [0.056, -0.062], [0.060, -0.030], [0.056, 0.010],
-    [0.053, 0.048], [0.056, 0.078], [0.062, 0.098], [0.040, 0.112]
-  ].map(([r, y]) => [r * s, y * s]), 14),
-    M(new THREE.Color(skin).multiplyScalar(0.92).getHex(), .78));
-  neck.position.set(0, 0.520 * s, 0.002 * s); neck.scale.z = 0.90;
-  neck.rotation.x = -age * 0.10; torso.add(neck);
-
-  // the neckline of whatever she has on, sitting on the trunk rather than
-  // ringing the neck like a napkin
-  const collar = new THREE.Mesh(LATHE([
-    [0.066, -0.016], [0.078, -0.006], [0.079, 0.010], [0.070, 0.020], [0.062, 0.018]
-  ].map(([r, y]) => [r * s, y * s]), 16),
-    M(shade(top, 0.88), .95));
-  collar.position.y = 0.512 * s; collar.scale.set(build, 1, 0.82); torso.add(collar);
-
-  // the head sits on a neck pivot so a stoop can carry it forward while
-  // headG stays free for look-at
-  const neckPivot = new THREE.Group();
-  neckPivot.position.set(0, 0.545 * s, age * 0.03 * s);
-  neckPivot.rotation.x = -age * 0.10; torso.add(neckPivot);
-  const headG = new THREE.Group(); neckPivot.add(headG);
   // The pivot is the atlas, at the base of the skull; the skull sits a
   // head-radius above it. Everything hung on the head -- ears, mouth,
   // glasses -- has to carry the same offset or it floats at the throat.
@@ -1185,7 +1132,7 @@ export function humanoid({
   // a sphere does not have: a jaw that narrows to a chin, and a nose.
   // The sphere is sized on the *breadth* of a head and then stood up,
   // because a head is 15 cm across and 22 cm tall and a ball is neither.
-  const hr = 0.0950 * s;
+  const hr = 0.0905 * s;
   const HS = { wide: 1, jaw: 1, nose: 1, chin: 1, ...(head || {}) };
   const style = hairStyle || (bun ? 'bun' : hairLong ? 'long' : 'short');
   const longHair = style === 'long' || style === 'wave';
@@ -1202,20 +1149,23 @@ export function humanoid({
     normalMap: normalOf(fOpen, 0.9)
   });
   faceM.normalScale.set(0.32, 0.32);
-  const skull = new THREE.Mesh(headGeo(hr, hl, HS), faceM);
+  const skull = new THREE.Mesh(headGeo(hr, hl, HS, hi ? 34 : 20), faceM);
   skull.position.y = HY; skull.scale.y = HSY; headG.add(skull);
-  [-1, 1].forEach(sd => {
-    const ear = blob(M(new THREE.Color(skin).multiplyScalar(0.92).getHex(), .8),
-      0.085 * hr, 0.40 * hr * HSY, 0.26 * hr, 8);
-    ear.position.set(sd * 0.80 * hr * HS.wide, HY + headPoint(FACE_ROW.eye + 14, hr).y * HSY, -0.10 * hr);
-    ear.rotation.set(0.12, sd * 0.22, -sd * 0.10); headG.add(ear);
-  });
+  if (hi) {
+    [-1, 1].forEach(sd => {
+      const ear = new THREE.Mesh(SPH(0.5, 8), M(new THREE.Color(skin).multiplyScalar(0.92).getHex(), .8));
+      ear.scale.set(0.085 * hr, 0.40 * hr * HSY, 0.26 * hr);
+      ear.position.set(sd * 0.80 * hr * HS.wide, HY + headPoint(FACE_ROW.eye + 14, hr).y * HSY, -0.10 * hr);
+      ear.rotation.set(0.12, sd * 0.22, -sd * 0.10); headG.add(ear);
+    });
+  }
 
-  // the jaw does not hinge -- the head is one mesh now. What opens is the
+  // the jaw does not hinge -- the head is one mesh. What opens is the
   // mouth: a dark hole that grows. Which is the tell, and it is worse.
   const jaw = new THREE.Group(); jaw.position.y = 0; headG.add(jaw);
   const mp = headPoint(FACE_ROW.mouth, hr);
-  const mouthHole = blob(M(0x140a09, .9), 0.032 * s, 0.004 * s, 0.014 * s, 10);
+  const mouthHole = new THREE.Mesh(SPH(0.5, 10), M(0x140a09, .9));
+  mouthHole.scale.set(0.032 * s, 0.004 * s, 0.014 * s);
   mouthHole.position.set(0, HY + mp.y * HSY + 0.006 * s, mp.z - 0.002 * s);
   mouthHole.visible = false; jaw.add(mouthHole);
 
@@ -1224,7 +1174,7 @@ export function humanoid({
     const ey = HY + ep.y * HSY;
     const gm = flat(glasses, { rough: .35, metal: .5 });
     [-1, 1].forEach(sd => {
-      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.021 * s, 0.0019 * s, 6, 16), gm);
+      const rim = new THREE.Mesh(SHAPE.Torus(0.021 * s, 0.0019 * s, 6, 16), gm);
       rim.position.set(sd * 0.028 * s, ey - 0.004 * s, ep.z + 0.010 * s); headG.add(rim);
       const bow = new THREE.Mesh(BOX(0.003 * s, 0.003 * s, 0.09 * s), gm);
       bow.position.set(sd * 0.064 * s, ey, 0.038 * s);
@@ -1241,220 +1191,39 @@ export function humanoid({
     style, color: hair, s, id: fo.id || '', hr, hsy: HSY, hy: HY, wide: HS.wide
   });
 
-  // ---- arms. One turned form per segment, and a ball at every joint
-  // sized to the two ends it sits between, so the crease reads as a
-  // crease. Without the ball you get a step, and a step at the shoulder
-  // is the single loudest tell that a body was assembled out of parts.
-  const arms = [];
-  const sleeveM = M(coat ? shade(top, 0.94) : top, .95);
-  const handM = M(shade(skin, 0.80), .76);   // a hand is never as bright as a lit face
-  const arm = 1 - fm * 0.11;
-  [-1, 1].forEach(sd => {
-    const sh = new THREE.Group();
-    sh.position.set(sd * (0.148 - fm * 0.008) * build * s, 0.452 * s, 0);
-    torso.add(sh);
+  // ---- the rig, in the names the chapters use
+  const arms = body.bones.arms.map(a => ({
+    sh: a.sh, el: a.el, hand: a.hand, knuckles: a.knuckles, fingers: a.fingers, thumbG: a.thumb, side: a.side,
+    restX: a.sh.rotation.x, restZ: a.sh.rotation.z, restEl: a.el.rotation.x
+  }));
+  const legs = body.bones.legs.map(l => ({
+    hp: l.hp, kn: l.kn, ankle: l.ankle, boot: null, side: l.side,
+    restHp: l.hp.rotation.x, restKn: l.kn.rotation.x
+  }));
 
-    // the deltoid rides the arm, because that is what a deltoid does, and
-    // it is what closes the gap between the trunk's shoulder and the arm
-    // The deltoid is a wedge that starts under the collarbone and dies
-    // away halfway down the arm, not a ball sitting on the joint. A ball
-    // stands proud of the trapezius on one side and of the arm on the
-    // other, and what you get is a puffed sleeve with a groove under it.
-    const delt = new THREE.Mesh(LATHE([
-      [0.026, 0.062], [0.052, 0.040], [0.064, 0.010], [0.067, -0.028],
-      [0.064, -0.072], [0.058, -0.112], [0.052, -0.145], [0.030, -0.158]
-    ].map(([r, y]) => [r * arm * s, y * s]), 14), sleeveM);
-    delt.scale.z = 0.96; sh.add(delt);
-
-    const upper = new THREE.Mesh(LATHE([
-      [0.020, 0.030], [0.042, 0.014], [0.052, -0.006], [0.055, -0.030],
-      [0.055, -0.056], [0.053, -0.098], [0.048, -0.158], [0.044, -0.224],
-      [0.042, -0.276], [0.041, -0.330], [0.039, -0.372], [0.018, -0.384]
-    ].map(([r, y]) => [r * arm * s, y * s])), sleeveM);
-    upper.scale.z = 0.97; sh.add(upper);
-
-    const el = new THREE.Group(); el.position.y = -0.300 * s; sh.add(el);
-    // smaller than either bone at the joint: it only ever shows in the
-    // crease of a bend, which is the whole job
-    const elbow = blob(sleeveM, 0.062 * arm * s, 0.068 * arm * s, 0.062 * arm * s, 10);
-    el.add(elbow);
-    const fore = new THREE.Mesh(LATHE([
-      [0.020, 0.092], [0.038, 0.082], [0.045, 0.058], [0.047, 0.030],
-      [0.047, 0.002], [0.046, -0.026], [0.042, -0.090], [0.036, -0.158],
-      [0.031, -0.212], [0.029, -0.248], [0.014, -0.262]
-    ].map(([r, y]) => [r * arm * s, y * s])), sleeveM);
-    el.add(fore);
-
-    const hand = new THREE.Group(); hand.position.y = -0.250 * s; el.add(hand);
-    // A hand is a wedge with a thumb on it. At the distance you ever see
-    // an NPC, four separate cylinders read as a garden rake; what has to
-    // be right is the width, the taper, and the fact that it is thinner
-    // than it is wide -- a round hand reads as a mitten.
-    const palm = new THREE.Mesh(LATHE([
-      [0.010, 0.034], [0.026, 0.026], [0.036, 0.008], [0.040, -0.018],
-      [0.041, -0.048], [0.039, -0.072], [0.034, -0.088]
-    ].map(([r, y]) => [r * arm * s, y * s]), 14), handM);
-    palm.scale.set(0.50, 1, 1.02); hand.add(palm);
-
-    const fingers = [];
-    const mitt = new THREE.Group();
-    mitt.position.set(0, -0.076 * arm * s, 0.001 * s);
-    mitt.rotation.x = -0.30;
-    const mm = new THREE.Mesh(LATHE([
-      [0.014, 0.016], [0.032, 0.008], [0.038, -0.012], [0.038, -0.040],
-      [0.036, -0.060], [0.030, -0.074], [0.020, -0.082], [0.007, -0.086]
-    ].map(([r, y]) => [r * arm * s, y * s]), 12), handM);
-    mm.scale.set(0.52, 1, 0.98); mitt.add(mm);
-    // the one groove that turns a paddle into fingers: a shadow between
-    // the middle and ring, which is where the eye looks for it
-    const gap = new THREE.Mesh(BOX(0.032 * arm * s, 0.052 * s, 0.0035 * arm * s), M(shade(skin, 0.60), .9));
-    gap.position.set(0, -0.048 * arm * s, 0.002 * s); mitt.add(gap);
-    hand.add(mitt); fingers.push(mitt);
-
-    const thumbG = new THREE.Group();
-    thumbG.position.set(sd * 0.012 * arm * s, -0.028 * s, 0.030 * s);
-    thumbG.rotation.set(-0.62, sd * 0.30, sd * 0.34);
-    const th = new THREE.Mesh(LATHE([
-      [0.008, 0.006], [0.014, -0.004], [0.014, -0.026], [0.012, -0.044],
-      [0.008, -0.052], [0.003, -0.056]
-    ].map(([r, y]) => [r * arm * s, y * s]), 10), handM);
-    thumbG.add(th);
-    hand.add(thumbG);
-
-    // the pose everything else deviates from: arms hang off the ribcage,
-    // not flat against it, and an elbow is never locked straight
-    sh.rotation.set(0.04 + age * 0.10, 0, sd * (0.078 + age * 0.03));
-    el.rotation.x = -0.20 - age * 0.30;
-    arms.push({
-      sh, el, hand, fingers, thumbG, side: sd,
-      restX: sh.rotation.x, restZ: sh.rotation.z, restEl: el.rotation.x
-    });
-  });
-
-  // ---- legs. Same rule as the arms: a ball at the knee, and each
-  // segment's dome buried inside its neighbour, so a bent leg has a
-  // crease and not a bead.
-  const legs = [];
-  const leg = 1 - fm * 0.05;
-  [-1, 1].forEach(sd => {
-    const hp = new THREE.Group();
-    hp.position.set(sd * 0.064 * build * s, -0.040 * s, 0); torso.add(hp);
-    hp.rotation.x = -age * 0.10;                 // old knees stay a little bent
-    // it runs a long way past the knee and the shin starts a long way
-    // above it: the overlap is buried, and it is the only thing that
-    // makes a bent knee read as a knee instead of a hinge with a hole
-    const thigh = new THREE.Mesh(trunkGeo([
-      [0.018, 0.060], [0.050, 0.050], [0.070, 0.026], [0.078, -0.006],
-      [0.081, -0.048], [0.080, -0.098], [0.077, -0.160], [0.072, -0.240],
-      [0.067, -0.318], [0.063, -0.380], [0.061, -0.432], [0.059, -0.478],
-      [0.056, -0.510], [0.030, -0.522]
-    ].map(([r, y]) => [r * leg * s, y * s]), {
-      w: 1, d: 0.94, seat: [0.030 * s, (0.006 + fm * 0.012) * s], seg: 18, key: `th${K}` }), botM);
-    hp.add(thigh);
-
-    const kn = new THREE.Group(); kn.position.y = -0.412 * s; hp.add(kn);
-    kn.add(blob(botM, 0.092 * leg * s, 0.098 * leg * s, 0.090 * leg * s, 10));
-    const shin = new THREE.Mesh(trunkGeo([
-      [0.026, 0.120], [0.048, 0.110], [0.058, 0.086], [0.062, 0.054],
-      [0.064, 0.020], [0.065, -0.014], [0.065, -0.062], [0.058, -0.140],
-      [0.047, -0.230], [0.038, -0.316], [0.034, -0.378], [0.033, -0.412],
-      [0.014, -0.428]
-    ].map(([r, y]) => [r * leg * s, y * s]), {
-      w: 1, d: 0.96, seat: [-0.082 * s, 0.030 * leg * s], seg: 18, key: `sn${K}` }), botM);
-    kn.add(shin);
-
-    const ankle = new THREE.Group(); ankle.position.y = -0.416 * s; kn.add(ankle);
-    ankle.rotation.y = sd * 0.06;                // feet turn out, always
-    // A shoe is a last: a heel, an instep, a toe box, and a sole that is
-    // narrower than the upper it carries. A sole cut wider than the shoe
-    // is a plank, and a plank is what a clown wears.
-    const sole = new THREE.Mesh(BOX(0.082 * s, 0.022 * s, 0.228 * s), M(shade(boots, .55), .95));
-    sole.position.set(0, -0.052 * s, 0.036 * s); ankle.add(sole);
-    const vamp = blob(bootM, 0.092 * s, 0.080 * s, 0.190 * s, 14);
-    vamp.position.set(0, -0.026 * s, 0.036 * s); ankle.add(vamp);
-    const toe = blob(bootM, 0.080 * s, 0.048 * s, 0.104 * s, 12);
-    toe.position.set(0, -0.038 * s, 0.116 * s); ankle.add(toe);
-    const back = blob(bootM, 0.082 * s, 0.096 * s, 0.092 * s, 12);
-    back.position.set(0, -0.008 * s, -0.042 * s); ankle.add(back);
-    legs.push({
-      hp, kn, ankle, boot: vamp, side: sd,
-      restHp: hp.rotation.x, restKn: kn.rotation.x
-    });
-  });
-
-  let coatMesh = null;
-  if (coat) {
-    // The coat used to be a cardboard box with an ellipsoid stuck on the
-    // front for a lapel, and it did not move when she did. It is a
-    // garment now: a body turned over the torso with a waist in it and a
-    // hem that flares, sleeves parented to the arm so they swing with it,
-    // a collar that stands off the neck, and a placket down the front.
-    const cm = coat === true ? tiled(MAT.coat, 0.6, 0.9) : flat(coat, { rough: .95 });
-    const cd = coat === true ? flat(0x4a4136, { rough: .96 }) : flat(shade(coat, 0.74), { rough: .96 });
-    coatMesh = new THREE.Mesh(trunkGeo([
-      [0.086, -0.372], [0.128, -0.366], [0.150, -0.352], [0.152, -0.300],
-      [0.148, -0.224], [0.142, -0.148], [0.136, -0.076], [0.132, -0.008],
-      [0.130, 0.048], [0.133, 0.098], [0.140, 0.164], [0.150, 0.238],
-      [0.157, 0.312], [0.159, 0.382], [0.153, 0.436], [0.136, 0.482],
-      [0.106, 0.516], [0.076, 0.534]
-    ].map(([r, y]) => [r * s, y * s]), {
-      w: build * 1.04, d: 0.80,
-      bust: fm > 0.15 ? [0.250 * s, 0.020 * s, 0.075 * s] : null,
-      shoulder: [0.450 * s, 0.042 * build * s],
-      key: `ct${K}`
-    }), cm);
-    torso.add(coatMesh);
-
-    // the placket, and the two buttons that sit on it
-    const plk = new THREE.Mesh(BOX(0.052 * s, 0.62 * s, 0.012 * s), cd);
-    plk.position.set(0.014 * s, 0.070 * s, 0.104 * s * build); torso.add(plk);
-    [0.20, 0.02].forEach(by => {
-      const b = new THREE.Mesh(CYL(0.011 * s, 0.011 * s, 0.006 * s, 8), cd);
-      b.rotation.x = Math.PI / 2;
-      b.position.set(0.014 * s, by * s, 0.112 * s * build); torso.add(b);
-    });
-    // lapels: two thin wedges laid back off the neckline, not a blob
-    [-1, 1].forEach(sd => {
-      const lp = new THREE.Mesh(trunkGeo([
-        [0.008, 0.098], [0.040, 0.076], [0.052, 0.020], [0.048, -0.046],
-        [0.034, -0.098], [0.014, -0.126], [0.004, -0.134]
-      ].map(([r, y]) => [r * s, y * s]), { w: 1, d: 0.34, seg: 10, key: `lp${s.toFixed(4)}` }), cm);
-      lp.position.set(sd * 0.052 * s * build, 0.372 * s, 0.088 * s * build);
-      lp.rotation.set(0.16, 0, sd * 0.30); torso.add(lp);
-    });
-    // a collar that stands off the neck, open at the front
-    const cl = new THREE.Mesh(hairBell([
-      [0.078, 0.052], [0.094, 0.030], [0.100, -0.004], [0.096, -0.036], [0.082, -0.052]
-    ].map(([r, y]) => [r * s, y * s]), 1.35, 16), cm);
-    cl.position.y = 0.486 * s; cl.scale.set(build, 1, 0.90); torso.add(cl);
-
-    // sleeves, hung off the arm rather than off the room
-    arms.forEach(a => {
-      const up = new THREE.Mesh(LATHE([
-        [0.028, 0.048], [0.058, 0.026], [0.072, -0.008], [0.076, -0.048],
-        [0.072, -0.120], [0.065, -0.204], [0.061, -0.286], [0.060, -0.322]
-      ].map(([r, y]) => [r * arm * s, y * s]), 14), cm);
-      a.sh.add(up);
-      const lo = new THREE.Mesh(LATHE([
-        [0.030, 0.078], [0.058, 0.062], [0.060, 0.020], [0.058, -0.048],
-        [0.054, -0.126], [0.050, -0.196], [0.049, -0.238], [0.030, -0.248]
-      ].map(([r, y]) => [r * arm * s, y * s]), 14), cm);
-      a.el.add(lo);
-      // the cuff, turned back, three sizes too big and it shows
-      const cf = new THREE.Mesh(LATHE([
-        [0.032, 0.014], [0.056, 0.006], [0.058, -0.030], [0.052, -0.042], [0.034, -0.046]
-      ].map(([r, y]) => [r * arm * s, y * s]), 14), cd);
-      cf.position.y = -0.226 * s; a.el.add(cf);
-    });
-  }
-
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+  g.traverse(o => { if (o.isMesh) { o.castShadow = hi; o.receiveShadow = true; } });
   return {
-    g, hips, torso, neckPivot, headG, jaw, arms, legs, chest, skull, coatMesh, scale: s,
-    face: { mat: faceM, open: fOpen, shut: fShut },
+    g, hips, torso, neckPivot, headG, jaw, arms, legs, chest, skull, body: body.mesh,
+    coatMesh: topO.style === 'coat' ? body.mesh : null, scale: s,
+    head: { hr, hy: HY, hsy: HSY },
+    // `opts` and `gaze` are how the eyes move: Character paints the iris
+    // in four more places on demand and swaps the map, the same trick the
+    // blink already uses. See GAZE in this file.
+    face: { mat: faceM, open: fOpen, shut: fShut, opts: fo, gaze: [fOpen] },
     mouthHole, mouthH0: mouthHole.scale.y, mouthY0: mouthHole.position.y
   };
 }
+
+
+/**
+ * Where the iris is painted, in canvas pixels, for each of the five
+ * eye positions: level, and the four corners of the socket. Canvas X
+ * runs the same way as the head's own +X, so index 1 is the character
+ * looking to their own left, which is the same side the head turns to
+ * on a positive yaw. Down is further than up because a person looking
+ * down closes the lid over it and a person looking up does not.
+ */
+const GAZE = [[0, 0], [3.4, 0], [-3.4, 0], [0, 2.2], [0, -1.8]];
 
 /**
  * Character controller: idle sway, walk, look-at, and the three
@@ -1479,6 +1248,12 @@ export class Character {
     this.blinkT = 1 + Math.random() * 4;
     this.blinkK = 0;
     this.jawSm = 0;
+    // ---- the eyes. See _gaze.
+    this.gx = 0; this.gy = 0;          // where the iris is, -1..1 in each axis
+    this.gazeIdx = 0;                  // which painted eye is on the face
+    this.sacT = 0.4 + Math.random();   // seconds to the next flick
+    this.sacX = 0; this.sacY = 0;      // and where it went
+    this.eyes = true;
     this.armPose = [null, null];
     // ---- performance. See setBusy / gesture / speak below.
     this.busyName = null;
@@ -1507,7 +1282,7 @@ export class Character {
   /** Tell #2, her shadow is cast from the wrong direction. */
   wrongShadow(dirAngle = 0.9, len = 2.4) {
     if (this.shadow) return this.shadow;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(0.5, len),
+    const m = new THREE.Mesh(SHAPE.Plane(0.5, len),
       flat(0x000000, { rough: 1, transparent: true, opacity: 0.42 }));
     m.rotation.x = -Math.PI / 2;
     m.position.set(0, 0.012, len / 2);
@@ -1538,7 +1313,8 @@ export class Character {
    * towel to say a sentence, and somebody who freezes solid the moment
    * they start talking is the loudest thing in the room.
    *
-   * 'fold' | 'salt' | 'clasp' | 'pockets' | 'write' | null
+   * 'fold' | 'salt' | 'clasp' | 'pockets' | 'write' | 'wipe' |
+   * 'wash' | 'sweep' | 'counter' | null
    */
   setBusy(name, sec = 0) {
     if (sec > 0) { this.busyPrev = this.busyName; this.busyUntil = sec; }
@@ -1548,6 +1324,8 @@ export class Character {
   }
   /** Stop the hands for a moment without forgetting what they were doing. */
   pauseBusy(sec = 1.0) { this.busyHold = Math.max(this.busyHold, sec); return this; }
+  /** Put them back to work now, whatever they were told to hold for. */
+  resumeBusy(name = null) { this.busyHold = 0; if (name) this.setBusy(name); return this; }
 
   /**
    * A one-off beat, in the script's own words: smile, laugh, nod, shake,
@@ -1606,6 +1384,30 @@ export class Character {
         return { x: -0.34 + Math.sin(t * 0.7 + i) * 0.015, z: 0.22, el: -1.05 };
       case 'pockets':
         return { x: 0.10, z: 0.20, el: -0.62 };
+      case 'wipe': {
+        // a cloth going round a counter, which is what everybody behind
+        // one is doing whether the counter needs it or not
+        const c = Math.sin(t * 1.9), d2 = Math.cos(t * 1.9);
+        return i === 1
+          ? { x: -0.62 + d2 * 0.10, z: 0.30 + c * 0.26, el: -1.18 - Math.abs(c) * 0.12 }
+          : { x: -0.18, z: 0.16, el: -0.72 };
+      }
+      case 'wash': {
+        // a sponge over the roof of a car: long, slow, both arms, and the
+        // shoulders go with it
+        const c = Math.sin(t * 1.35);
+        return { x: -0.92 + c * 0.22, z: 0.20 + Math.max(0, c) * 0.14, el: -0.58 - Math.abs(c) * 0.20 };
+      }
+      case 'sweep': {
+        const c = Math.sin(t * 1.15);
+        return i === 1
+          ? { x: -0.46 + c * 0.24, z: 0.22, el: -0.94 - Math.max(0, c) * 0.18 }
+          : { x: -0.30 + c * 0.14, z: 0.12, el: -1.22 };
+      }
+      case 'counter': {
+        // both forearms down on a counter, which is a whole personality
+        return { x: -0.86, z: 0.14 + i * 0.02, el: -0.88 + Math.sin(t * 0.5 + i) * 0.02 };
+      }
       default: return null;
     }
   }
@@ -1671,10 +1473,95 @@ export class Character {
   hold(i, obj, { curl = 0.9, pose = { x: 0.15, z: 0.10, el: -0.55 } } = {}) {
     const a = this.p.arms[i];
     a.hand.add(obj);
-    a.fingers.forEach(f => { f.rotation.x = -0.42 - curl * 0.85; });
-    a.thumbG.rotation.x = -0.55 - curl * 0.40;
+    // Four fingers do not close by the same amount on anything. The
+    // index takes the weight, the little finger barely commits, and
+    // that stagger is most of what separates a grip from a mitten.
+    const STAG = [1.0, 0.94, 0.88, 0.78];
+    a.fingers.forEach((f, k) => {
+      // the knuckle line runs front to back, so a finger closes on the
+      // palm by turning about z, toward the body
+      f.rotation.z = -a.side * (0.42 + curl * 0.95 * (STAG[k] ?? 1));
+    });
+    if (a.thumbG) a.thumbG.rotation.x = -0.55 - curl * 0.40;
     this.setArmPose(i, pose);
     return obj;
+  }
+
+  /**
+   * The eyes.
+   *
+   * The head lerps toward whatever it is looking at over about a
+   * quarter of a second. Eyes do not: they snap, they arrive first,
+   * and they sit at the corner of the socket while the neck catches
+   * up. That lag is the single loudest difference between a person
+   * looking at you and a mask that has been aimed at you, and it is
+   * free here, because the iris is painted and a painted iris can be
+   * painted somewhere else.
+   *
+   * Five faces, drawn on demand and then cached forever: centre, and
+   * the four corners of the socket. Between flicks the eyes are never
+   * still, because nobody's are, they walk your face while you talk.
+   */
+  _gaze(dt, wantYaw, wantPitch) {
+    const f = this.p.face;
+    if (!f) return;
+    if (!this.eyes || !f.opts) {
+      const want = this.blinkK > 0 ? f.shut : f.open;
+      if (f.mat.map !== want) f.mat.map = want;
+      return;
+    }
+
+    // ---- micro-saccades: the eyes walk between your eyes and your mouth
+    this.sacT -= dt;
+    if (this.sacT <= 0) {
+      this.sacT = 0.55 + Math.random() * 2.1;
+      this.sacX = (Math.random() - 0.5) * 0.9;
+      this.sacY = (Math.random() - 0.5) * 0.7;
+      // and every so often the eyes go somewhere else entirely for a
+      // moment, which is a person thinking rather than a camera tracking
+      if (Math.random() < 0.22) { this.sacX *= 2.6; this.sacY *= 1.6; }
+    }
+
+    let tx, ty;
+    const g = this.gest;
+    if (g && (g.name === 'lookAway' || g.name === 'lookDown')) {
+      // the eyes lead the turn away, they do not strain back toward it
+      tx = g.name === 'lookAway' ? Math.sign(this.headOff.y || 1) * 0.85 : 0.2;
+      ty = g.name === 'lookDown' ? 0.9 : 0.15;
+    } else if (this.lookAtTarget) {
+      // whatever the neck has not covered yet, in socket widths
+      tx = THREE.MathUtils.clamp((wantYaw - this.headBase.y) / 0.34, -1, 1) + this.sacX * 0.45;
+      ty = THREE.MathUtils.clamp((wantPitch - this.headBase.x) / 0.30, -1, 1) + this.sacY * 0.45;
+    } else {
+      tx = this.sacX; ty = this.sacY;
+    }
+
+    // eyes move fast, but not instantly: a flick is about 40 ms
+    const k = Math.min(1, dt * 22);
+    this.gx += (THREE.MathUtils.clamp(tx, -1.2, 1.2) - this.gx) * k;
+    this.gy += (THREE.MathUtils.clamp(ty, -1.2, 1.2) - this.gy) * k;
+
+    // ---- which of the five painted eyes that is.
+    // Deadzone, then the dominant axis, so the face never flickers
+    // between two maps a frame apart.
+    let idx = 0;
+    if (Math.abs(this.gx) > 0.30 || Math.abs(this.gy) > 0.34) {
+      idx = Math.abs(this.gx) * 1.25 >= Math.abs(this.gy)
+        ? (this.gx > 0 ? 1 : 2)
+        : (this.gy > 0 ? 3 : 4);
+    }
+    if (idx !== this.gazeIdx) this.gazeIdx = idx;
+
+    const want = this.blinkK > 0 ? f.shut : this._gazeMap(this.gazeIdx);
+    if (f.mat.map !== want) f.mat.map = want;
+  }
+
+  /** One of the five faces, painted the first time it is needed. */
+  _gazeMap(i) {
+    const f = this.p.face;
+    if (i === 0 || !f.opts) return f.open;
+    if (!f.gaze[i]) f.gaze[i] = faceTex(f.opts, false, GAZE[i]);
+    return f.gaze[i];
   }
 
   update(dt, ctx) {
@@ -1741,24 +1628,26 @@ export class Character {
       this.blinkT -= dt;
       if (this.blinkT <= 0) { this.blinkT = 2.6 + Math.random() * 4.4; this.blinkK = 0.16; }
       this.blinkK = Math.max(0, this.blinkK - dt);
-      const want = this.blinkK > 0 ? p.face.shut : p.face.open;
-      if (p.face.mat.map !== want) p.face.mat.map = want;
     }
 
     // head look-at
+    let wantYaw = 0, wantPitch = 0;
     if (this.lookAtTarget) {
       const tp = this.lookAtTarget.isVector3 ? this.lookAtTarget
         : this.lookAtTarget.getWorldPosition(new THREE.Vector3());
       const local = this.g.worldToLocal(tp.clone());
-      const yaw = Math.atan2(local.x, local.z);
-      const pitch = -Math.atan2(local.y - 1.5 * p.scale, Math.hypot(local.x, local.z));
+      wantYaw = THREE.MathUtils.clamp(Math.atan2(local.x, local.z), -1.2, 1.2);
+      wantPitch = THREE.MathUtils.clamp(
+        -Math.atan2(local.y - 1.5 * p.scale, Math.hypot(local.x, local.z)), -0.5, 0.5);
       this.lookWeight = Math.min(1, this.lookWeight + dt * 2.5);
-      this.headBase.y += (THREE.MathUtils.clamp(yaw, -1.2, 1.2) - this.headBase.y) * Math.min(1, dt * 4);
-      this.headBase.x += (THREE.MathUtils.clamp(pitch, -0.5, 0.5) - this.headBase.x) * Math.min(1, dt * 4);
+      this.headBase.y += (wantYaw - this.headBase.y) * Math.min(1, dt * 4);
+      this.headBase.x += (wantPitch - this.headBase.x) * Math.min(1, dt * 4);
     } else {
       this.headBase.y += (0 - this.headBase.y) * Math.min(1, dt * 2);
       this.headBase.x += (0 - this.headBase.x) * Math.min(1, dt * 2);
     }
+    // and then the eyes, which got there first
+    this._gaze(dt, wantYaw, wantPitch);
     // A nod, a shake, a glance away, laid over wherever the look-at has
     // put the head. It has to be an overlay on a base the gesture never
     // touches: added straight onto headG.rotation it accumulates every
@@ -1842,8 +1731,8 @@ export function performLine(who, text, ms = 0, { style = '' } = {}) {
 export function makeRecca(world, { coat = true } = {}) {
   const parts = humanoid({
     height: 1.63, skin: 0xe0bda2, hair: 0x7c4a2c,
-    top: 0x6b5f52, bottom: 0x2c3444, coat: coat ? true : null,
-    boots: 0x4a3b2c, build: 0.92, hairLong: true,
+    top: 0x6b5f52, topStyle: 'sweater', bottom: 0x2c3444, pantsStyle: 'jeans', coat: coat ? true : null,
+    boots: 0x4a3b2c, shoeStyle: 'boot', build: 0.92, hairLong: true,
     female: 1, hairStyle: 'wave',
     head: { wide: 0.95, jaw: 0.78, nose: 0.76, chin: 0.94, brow: 0.7 },
     face: {
@@ -1880,16 +1769,15 @@ export function makeReccaDrowned(world) {
 export function makeVictor(world) {
   const parts = humanoid({
     height: 1.79, skin: 0xc9a184, hair: 0x2a231c,
-    top: 0x141416, bottom: 0x1e1e22, boots: 0x1a1a1c, build: 1.02, hairLong: false,
+    top: 0x16161a, topStyle: 'shirt', bottom: 0x1e1e22, pantsStyle: 'trouser',
+    boots: 0x1a1a1c, shoeStyle: 'shoe', build: 1.02, hairLong: false,
+    hood: true,          // hooded sweatshirt under the clergy shirt
     hairStyle: 'crop', head: { wide: 0.97, jaw: 1.12, nose: 1.14, chin: 1.16, brow: 1.2 },
     face: {
       iris: 0x3a2c1e, lipCol: 0x9c6154, stubble: 0.7,
       eyeGap: 0.95, eyeW: 0.94, noseW: 1.10, browY: -2, id: 'victor'
     }
   });
-  // hooded sweatshirt under the clergy shirt
-  const hood = new THREE.Mesh(new THREE.BoxGeometry(0.30, 0.12, 0.20), flat(0x3a3d42, { rough: .96 }));
-  hood.position.set(0, 0.48, -0.06); parts.torso.add(hood);
   // the collar tab is missing; there's a strip of cut-up milk jug in his pocket
   const c = new Character(world, parts, { name: 'VICTOR', walkSpeed: 1.35 });
   c.isVictor = true;
@@ -1899,7 +1787,8 @@ export function makeVictor(world) {
 export function makeMarta(world) {
   const parts = humanoid({
     height: 1.58, skin: 0xd6b096, hair: 0x4a3b30,
-    top: 0x5c4a5e, bottom: 0x33363c, boots: 0x2a2a2c, build: 1.02, hairLong: false,
+    top: 0x5c4a5e, topStyle: 'sweater', bottom: 0x33363c, pantsStyle: 'trouser',
+    boots: 0x2a2a2c, shoeStyle: 'shoe', build: 1.02, hairLong: false,
     female: 0.9, hairStyle: 'bob',
     head: { wide: 1.0, jaw: 0.86, nose: 0.92, chin: 0.94 },
     face: {
@@ -1922,21 +1811,21 @@ export function makeGeneric(world, opts = {}) {
 export function makeButtons(world, x, y, z) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const M = flat(0x8a7358, { rough: .98 });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.24, 0.5), M); body.position.y = 0.36; g.add(body);
-  const head = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.18, 0.2), M); head.position.set(0, 0.48, 0.31); g.add(head);
-  const snout = new THREE.Mesh(new THREE.BoxGeometry(0.09, 0.08, 0.12), flat(0x6d5947, { rough: .98 }));
+  const body = new THREE.Mesh(SHAPE.Box(0.22, 0.24, 0.5), M); body.position.y = 0.36; g.add(body);
+  const head = new THREE.Mesh(SHAPE.Box(0.18, 0.18, 0.2), M); head.position.set(0, 0.48, 0.31); g.add(head);
+  const snout = new THREE.Mesh(SHAPE.Box(0.09, 0.08, 0.12), flat(0x6d5947, { rough: .98 }));
   snout.position.set(0, 0.45, 0.44); g.add(snout);
   [-1, 1].forEach(s => {
-    const ear = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.11, 0.03), flat(0x6d5947, { rough: .98 }));
+    const ear = new THREE.Mesh(SHAPE.Box(0.05, 0.11, 0.03), flat(0x6d5947, { rough: .98 }));
     ear.position.set(s * 0.07, 0.57, 0.28); ear.rotation.z = s * 0.2; g.add(ear);
   });
   const legs = [];
   [[-.08, .18], [.08, .18], [-.08, -.16], [.08, -.16]].forEach(([lx, lz]) => {
-    const l = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.26, 0.06), M);
+    const l = new THREE.Mesh(SHAPE.Box(0.055, 0.26, 0.06), M);
     l.position.set(lx, 0.13, lz); g.add(l); legs.push(l);
   });
   const tail = new THREE.Group(); tail.position.set(0, 0.44, -0.24); g.add(tail);
-  const tm = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.04, 0.2), M); tm.position.z = -0.1; tail.add(tm);
+  const tm = new THREE.Mesh(SHAPE.Box(0.04, 0.04, 0.2), M); tm.position.z = -0.1; tail.add(tm);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.add(g);
   const h = { g, tail, legs, wag: 1, following: false, t: 0 };

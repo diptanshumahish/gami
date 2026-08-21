@@ -4,13 +4,14 @@
    as a town without modelling one.
    ============================================================ */
 import * as THREE from 'three';
-import { MAT, flat, tiled } from './mat.js';
-import { SCALE, BOX, CYL, SPH, PLN } from './world.js';
+import { MAT, T, flat, tiled, mat } from './mat.js';
+import { SHAPE, SCALE, BOX, CYL, SPH, PLN } from './world.js';
 import { buildStreetlights } from './streetlights.js';
-import { buildTerrace, buildBackdrop, utilityPole, streetTree, parkingMeter, bench, parkedCar } from './facades.js';
+import { buildTerrace, buildBackdrop, utilityPole, streetTree, parkingMeter, bench, parkedCar, litterBin, mailbox, newsBox, hydrant } from './facades.js';
 import { buildStreetLife } from './life.js';
 import { makeDoor } from './door.js';
 import { buildRowShops, ROW_GAPS } from './loc_row.js';
+import { ford } from './car.js';
 
 /**
  * 118 Ridge Rd, in numbers, because three files have to agree about it:
@@ -41,7 +42,7 @@ export const RIDGE = {
  */
 export function buildRidgeBlock(world, {
   x = 0, y = 0, z = 0, winter = false, night = true, snow = false, life = true,
-  shops = true, shopsOpen = false
+  shops = true, shopsOpen = false, nearGaps = [], roam = 34
 } = {}) {
   const h = { refs: {} };
   const groundMat = snow ? MAT.snow : MAT.asphalt;
@@ -134,7 +135,7 @@ export function buildRidgeBlock(world, {
   });
   if (z + BD / 2 - cursor > 0.02) eastSeg((cursor + z + BD / 2) / 2, z + BD / 2 - cursor, y, BH);
   // parapet + roof
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(BW + 0.4, 0.3, BD + 0.4), flat(0x2e2b28, { rough: .95 }));
+  const roof = new THREE.Mesh(SHAPE.Box(BW + 0.4, 0.3, BD + 0.4), flat(0x2e2b28, { rough: .95 }));
   roof.position.set(x, y + BH + 0.15, z); world.add(roof);
 
   // WASH-RITE sign
@@ -312,8 +313,15 @@ export function buildRidgeBlock(world, {
   world.add(endRail);
 
   // you cannot walk off the side of either the stair or the landing
-  world.collide(sx - RIDGE.stairW / 2 - 0.08, y, stairMidZ, 0.1, RIDGE.aptY + 1.2, RIDGE.stairRun, 'stairrail');
-  world.collide(sx + RIDGE.stairW / 2 + 0.08, y, stairMidZ, 0.1, RIDGE.aptY + 1.2, RIDGE.stairRun, 'stairrail');
+  // Both rails, but stopping half a metre short of the bottom tread. The
+  // stair lands 4.8 m into a 5.4 m pavement, so a rail that ran its full
+  // length left 0.52 m between the last post and the kerb, and a person
+  // is 0.56 m wide: you could not walk past your own front stair without
+  // stepping into the road. What is being given up is the outside of the
+  // bottom two treads, which are 19 and 38 cm off the ground.
+  const railD = RIDGE.stairRun - 0.5, railZ = stairMidZ - 0.25;
+  world.collide(sx - RIDGE.stairW / 2 - 0.08, y, railZ, 0.1, RIDGE.aptY + 1.2, railD, 'stairrail');
+  world.collide(sx + RIDGE.stairW / 2 + 0.08, y, railZ, 0.1, RIDGE.aptY + 1.2, railD, 'stairrail');
   world.collide(sx + RIDGE.landingW / 2 + 0.05, landingY, lz, 0.1, 1.1, RIDGE.landingD, 'stairrail');
   world.collide(sx, landingY, lz - RIDGE.landingD / 2 - 0.05, RIDGE.landingW, 1.1, 0.1, 'stairrail');
 
@@ -355,7 +363,7 @@ export function buildRidgeBlock(world, {
   if (shops) h.refs.shops = buildRowShops(world, { x, y, z: FAR_Z, night, snow, locked: !shopsOpen });
 
   // the far kerb, so the row is standing on a street and not on a plane
-  const fkerb = new THREE.Mesh(new THREE.BoxGeometry(RUN, 0.14, 0.3), tiled(MAT.concrete, RUN, 0.3));
+  const fkerb = new THREE.Mesh(SHAPE.Box(RUN, 0.14, 0.3), tiled(MAT.concrete, RUN, 0.3));
   fkerb.position.set(x, y + 0.07, FAR_KERB); world.add(fkerb);
 
   // ---------------------------------------------------------- the near side
@@ -363,11 +371,19 @@ export function buildRidgeBlock(world, {
   // it shares a party wall with whatever is west of it, and east of it
   // there is the side yard the stair comes down into and then the next
   // row. The gap is where the stair lives and it has to stay a gap.
+  // `nearGaps` is how a chapter puts a real building on this side of the
+  // road: the row leaves the ground, and the chapter fills it with an
+  // interior whose front wall stands on the same building line. Chapter
+  // One does it twice, for the diner and the pawn shop, because a street
+  // you can only look at is a street with two doors on it.
   h.refs.neighbours = buildTerrace(world, {
     x, y, z: z + BD / 2, from: -HALF - 1, to: HALF + 1, facing: 1, depth: 9,
     night, snow, seed: 883, nameFrom: 6, lights: night ? 2 : 0,
-    gaps: [[-BW / 2 - 0.25, RIDGE.landingX + 5.0]]
+    gaps: [[-BW / 2 - 0.25, RIDGE.landingX + 5.0], ...nearGaps]
   });
+  // where a chapter can put one: the building line on this side, and how
+  // deep the row is behind it.
+  h.refs.nearLine = { z: z + BD / 2, depth: 9 };
 
   // ---------------------------------------------------------- the wires
   // Poles down the far side with the span sagging between them. Looking
@@ -407,8 +423,11 @@ export function buildRidgeBlock(world, {
   // where the player is allowed to be. The far wall is the terrace's
   // own collision now, so crossing the road is a thing you can do.
   world.collide(x, y, z - BD / 2 - 0.3, RUN, 8, 0.6, 'backwall');
-  world.collide(x - 34, y, z + 12, 0.6, 10, 46, 'edgeW');
-  world.collide(x + 34, y, z + 12, 0.6, 10, 46, 'edgeE');
+  // How far down Ridge Road the player is allowed to get. Chapters that
+  // put something at the end of the street push these out; the rest of
+  // the time the town ends politely just past the parked cars.
+  world.collide(x - roam, y, z + 12, 0.6, 10, 46, 'edgeW');
+  world.collide(x + roam, y, z + 12, 0.6, 10, 46, 'edgeE');
 
   // ---------------------------------------------------------- street furniture
   // Ridge Road runs along X here, and so, now, do its streetlights. They
@@ -433,21 +452,22 @@ export function buildRidgeBlock(world, {
   h.refs.streetlights = sl;
 
   // kerb
-  const kerb = new THREE.Mesh(new THREE.BoxGeometry(RUN, 0.14, 0.3), tiled(MAT.concrete, RUN, 0.3));
+  const kerb = new THREE.Mesh(SHAPE.Box(RUN, 0.14, 0.3), tiled(MAT.concrete, RUN, 0.3));
   kerb.position.set(x, y + 0.07, KERB_Z); world.add(kerb);
 
   // parked Volvo wagon. his father called it sensible.
   h.refs.volvo = volvo(world, x + 6.2, y, KERB_Z + 1.75, Math.PI / 2);
 
-  // a hydrant, a bin, a bench, a newspaper box, small-town furniture
-  const bin = new THREE.Mesh(CYL(0.28, 0.24, 0.85, 12), flat(0x3d4a3a, { rough: .8 }));
-  bin.position.set(x - 5.4, y + 0.42, z + 8.3); bin.castShadow = true; world.add(bin);
-  world.collide(x - 5.4, y, z + 8.3, 0.6, 0.9, 0.6, 'bin');
+  // a hydrant, a bin, a newspaper box, small-town furniture
+  litterBin(world, x - 5.4, y, z + 8.3, 0.4);
+  world.collide(x - 5.4, y, z + 8.3, 0.64, 0.9, 0.64, 'bin');
 
-  const box = new THREE.Mesh(BOX(0.42, 1.05, 0.36), flat(0x8C2F26, { rough: .6 }));
-  box.position.set(x + 4.2, y + 0.52, z + 8.5); box.castShadow = true; world.add(box);
-  world.collide(x + 4.2, y, z + 8.5, 0.45, 1.1, 0.4, 'newsbox');
+  const box = newsBox(world, x + 4.2, y, z + 8.5, Math.PI);
+  world.collide(x + 4.2, y, z + 8.5, 0.48, 1.15, 0.42, 'newsbox');
   h.refs.newsbox = box;
+
+  hydrant(world, x - 1.6, y, KERB_Z - 0.55, Math.PI);
+  world.collide(x - 1.6, y, KERB_Z - 0.55, 0.5, 1.0, 0.5, 'hydrant');
 
   // ---------------------------------------------------------- furniture
   // Eleven metres of pavement with a bin and a news box on it is not a
@@ -474,9 +494,8 @@ export function buildRidgeBlock(world, {
     world.collide(x + ox, y, KERB_Z - 2.0, 1.9, 0.95, 0.8, 'bench');
   });
   // the mailbox, which in this town is the one blue thing
-  const mbox = new THREE.Mesh(BOX(0.62, 1.15, 0.5), flat(0x27437a, { rough: .55 }));
-  mbox.position.set(x - 9.6, y + 0.58, KERB_Z - 0.9); mbox.castShadow = true; world.add(mbox);
-  world.collide(x - 9.6, y, KERB_Z - 0.9, 0.66, 1.2, 0.55, 'mailbox');
+  mailbox(world, x - 9.6, y, KERB_Z - 0.9, Math.PI);
+  world.collide(x - 9.6, y, KERB_Z - 0.9, 0.66, 1.4, 0.55, 'mailbox');
 
   // Cars parallel-parked in the bays, which means nose ALONG the street.
   // They were built nose-first and dropped in at rotation zero, which
@@ -492,7 +511,7 @@ export function buildRidgeBlock(world, {
 
   if (snow) {
     // snow does not settle everywhere in this town, but here it does
-    const drift = new THREE.Mesh(new THREE.BoxGeometry(RUN, 0.18, 1.4), tiled(MAT.snow, RUN, 1.4));
+    const drift = new THREE.Mesh(SHAPE.Box(RUN, 0.18, 1.4), tiled(MAT.snow, RUN, 1.4));
     drift.position.set(x, y + 0.09, KERB_Z - 0.6); world.add(drift);
   }
 
@@ -583,95 +602,31 @@ export function signBoard(text, w, hh, fg = '#E8A653', bg = '#1a1512', font = 'J
   g.fillStyle = bg; g.fillRect(0, 0, c.width, c.height);
   g.strokeStyle = fg; g.lineWidth = 6; g.strokeRect(6, 6, c.width - 12, c.height - 12);
   g.fillStyle = fg;
-  g.font = `bold ${Math.round(c.height * 0.46)}px "${font}", monospace`;
   g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.fillText(text, c.width / 2, c.height / 2 + 2);
+  // one line, big; several lines, stacked and sized to fit the board
+  const lines = String(text).split('\n');
+  if (lines.length === 1) {
+    g.font = `bold ${Math.round(c.height * 0.46)}px "${font}", monospace`;
+    g.fillText(text, c.width / 2, c.height / 2 + 2);
+  } else {
+    const lh = Math.min(c.height * 0.46, (c.height - 24) / lines.length);
+    g.font = `bold ${Math.round(lh * 0.78)}px "${font}", monospace`;
+    const y0 = c.height / 2 - (lines.length - 1) * lh / 2;
+    lines.forEach((l, i) => g.fillText(l, c.width / 2, y0 + i * lh + 2));
+  }
   const t = new THREE.CanvasTexture(c);
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, hh), new THREE.MeshStandardMaterial({
+  const m = new THREE.Mesh(SHAPE.Plane(w, hh), new THREE.MeshStandardMaterial({
     map: t, roughness: .8, emissive: new THREE.Color(fg), emissiveMap: t, emissiveIntensity: .35
   }));
   return m;
 }
 
 /**
- * 2006 Volvo V70. Sensible.
- *
- * A V70 is 4.71 long, 1.80 wide and 1.49 TALL, and this one used to be
- * 1.77 to the roof: taller than the man looking at it, with a beltline
- * at 1.08 and a greenhouse that read as a shed on a plinth. The numbers
- * below are the ones off the brochure, and everything else follows them.
+ * Jared's car. It was a Volvo for a long time and the name stayed on the
+ * call sites; it is a 1993 Ford Taurus wagon now (see car.js), which is
+ * what a twenty-three-year-old moving to Ashgrove with a box of books
+ * would actually be driving. Same signature, same collider, same return.
  */
-export function volvo(world, x, y, z, rot = 0, { doorsOpen = false } = {}) {
-  const g = new THREE.Group();
-  g.position.set(x, y, z); g.rotation.y = rot;
-  // metalness with no envmap renders black; see carBody in facades.js
-  const paint = flat(0x53687d, { rough: .3, metal: .08 });
-  const shade = flat(0x455767, { rough: .36, metal: .06 });
-  const trimM = flat(0x26292c, { rough: .85 });
-  const chrome = flat(0xb0b5b8, { rough: .35, metal: .12 });
-  const glassM = new THREE.MeshPhysicalMaterial({ color: 0x2b3540, roughness: .1, transmission: .3, transparent: true, opacity: .72 });
-
-  const L = 4.71, W = 1.80, SILL = 0.30, BELT = 0.96, ROOF = 1.49;
-  const box = (w, h, d, px, py, pz, mat, rx = 0) => {
-    const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-    m.position.set(px, py, pz); if (rx) m.rotation.x = rx;
-    g.add(m); return m;
-  };
-
-  // body from the sill to the beltline, with the sill tucked under it
-  box(W, BELT - SILL, L, 0, (SILL + BELT) / 2, 0, paint);
-  box(W - 0.10, 0.14, L - 1.5, 0, SILL - 0.03, 0, trimM);
-  box(W + 0.015, 0.055, L - 0.36, 0, BELT - 0.02, 0, shade);
-  // the bonnet, a step down from the wings
-  box(W - 0.14, 0.055, 1.34, 0, BELT - 0.035, L / 2 - 0.72, shade);
-  // shut lines, two doors a side
-  [1, -1].forEach(sx => [0.22, -1.06].forEach(dz =>
-    box(0.012, BELT - SILL - 0.14, 0.02, sx * (W / 2 + 0.004), (SILL + BELT) / 2, dz, trimM)));
-
-  // the greenhouse: an estate, so the glass runs almost to the tailgate
-  const cabD = 2.52, cabZ = -0.30, glassH = ROOF - BELT - 0.06;
-  box(W - 0.19, glassH, cabD, 0, BELT + glassH / 2 + 0.01, cabZ, glassM);
-  box(W - 0.27, 0.07, cabD + 0.04, 0, ROOF - 0.03, cabZ, paint);
-  // A, B, C and D pillars. A rail down each side paints the windows out.
-  [1, -1].forEach(sx => {
-    [cabD / 2 - 0.05, cabD * 0.16, -cabD * 0.20, -cabD / 2 + 0.05].forEach(pz =>
-      box(0.075, glassH, 0.10, sx * (W / 2 - 0.10), BELT + glassH / 2 + 0.01, cabZ + pz, paint));
-    box(0.055, 0.05, cabD + 0.02, sx * (W / 2 - 0.105), ROOF - 0.09, cabZ, paint);
-  });
-  // the windscreen, raked from the corner of the roof down to the cowl.
-  // +z is the nose, so it falls away towards +z: a POSITIVE rotation.
-  const run = glassH * 1.25, screen = Math.hypot(run, glassH);
-  box(W - 0.21, 0.075, screen + 0.04, 0, BELT + glassH / 2 + 0.01,
-    cabZ + cabD / 2 + run / 2, paint, Math.atan2(glassH, run));
-  box(W - 0.23, glassH - 0.03, 0.07, 0, BELT + glassH / 2, cabZ - cabD / 2 - 0.03, glassM);
-  // roof rails, which every one of these has
-  [1, -1].forEach(sx => box(0.05, 0.05, cabD * 0.86, sx * (W / 2 - 0.24), ROOF + 0.05, cabZ - 0.08, trimM));
-
-  // bumpers and arch lips
-  [1, -1].forEach(fz => box(W + 0.02, 0.20, 0.20, 0, SILL + 0.16, fz * (L / 2 - 0.05), chrome));
-  [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(([sx, sz]) =>
-    box(0.055, 0.34, 1.02, sx * (W / 2 + 0.005), SILL + 0.14, sz * L * 0.30, trimM));
-
-  [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(([sx, sz]) => {
-    const wx = sx * (W / 2 - 0.085), wz = sz * L * 0.30;
-    const w = new THREE.Mesh(CYL(0.33, 0.33, 0.21, 14), flat(0x141414, { rough: .95 }));
-    w.rotation.z = Math.PI / 2; w.position.set(wx, 0.33, wz); g.add(w);
-    const hub = new THREE.Mesh(CYL(0.185, 0.185, 0.23, 10), chrome);
-    hub.rotation.z = Math.PI / 2; hub.position.set(wx, 0.33, wz); g.add(hub);
-  });
-  [-1, 1].forEach(s => {
-    box(0.38, 0.15, 0.05, s * 0.56, BELT - 0.20, L / 2 + 0.015, flat(0xd8d8d0, { rough: .15 }));
-    // the tail lamps go UP the D-pillar, which is the one thing about a
-    // Volvo estate that is recognisable from behind at two hundred metres
-    box(0.16, 0.52, 0.05, s * (W / 2 - 0.12), BELT + 0.12, -L / 2 - 0.01, flat(0x8C2F26, { rough: .3 }));
-    box(0.22, 0.20, 0.05, s * 0.60, BELT - 0.22, -L / 2 - 0.015, flat(0x8C2F26, { rough: .3 }));
-  });
-  box(W - 0.5, 0.10, 0.04, 0, BELT - 0.34, L / 2 + 0.03, trimM);
-  box(0.34, 0.14, 0.03, 0, SILL + 0.13, -L / 2 - 0.05, flat(0xc9c6ba, { rough: .6 }));
-
-  g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
-  world.add(g);
-  const c = Math.abs(Math.cos(rot)), s2 = Math.abs(Math.sin(rot));
-  world.collide(x, y, z, (W + 0.1) * c + (L + 0.1) * s2, ROOF, (L + 0.1) * c + (W + 0.1) * s2, 'car');
-  return g;
+export function volvo(world, x, y, z, rot = 0, opts = {}) {
+  return ford(world, x, y, z, rot, opts);
 }

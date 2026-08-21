@@ -15,7 +15,7 @@ import { buildVaskoHouse } from '../world/loc_vasko.js';
 import { buildDiner, buildPawn, buildFuelGo, buildCemetery, buildLibrary, buildMine } from '../world/loc_town.js';
 import { makeRecca, makeMarta, makeButtons, makeGeneric, smallProp, clutter } from '../world/props.js';
 import { MAT, flat, tiled, T } from '../world/mat.js';
-import { BOX, CYL, SPH, PLN } from '../world/world.js';
+import { SHAPE, BOX, CYL, SPH, PLN } from '../world/world.js';
 import { UI, wait } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { scares } from '../core/scares.js';
@@ -498,7 +498,7 @@ function setupCemetery(ctx, cem, recca, S) {
       if (dug === 4) await UI.say('JARED', '[ten centimetres. maybe.]', { style: 'thought', dur: 1600 });
       if (dug >= 5) {
         // his phone rings. it's Recca.
-        scares.fire('ch3.phonecall', () => { audio.sfx('ring', { vol: .6 }); });
+        scares.fire('ch3.phonecall', () => { audio.sfx('ringtone', { vol: .6 }); });
         setFlag('dugAtTheStone');
         S.found++;
         objectiveDone('n10');
@@ -626,22 +626,22 @@ function buildBarn(world, { x, y, z }) {
   const h = { refs: {} };
   const W = 12, D = 9, H = 6.5;
   world.floor(x, z, 40, 34, { y, surface: 'snow', mat: MAT.snow });
-  const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), tiled(MAT.shingle, W, H));
+  const body = new THREE.Mesh(SHAPE.Box(W, H, D), tiled(MAT.shingle, W, H));
   body.material = tiled(MAT.brick, W, H);
   body.position.set(x, y + H / 2, z);
   body.castShadow = true; body.receiveShadow = true;
   world.add(body);
   world.collide(x, y, z, W, H, D, 'barn');
-  const roof = new THREE.Mesh(new THREE.BoxGeometry(W + 0.6, 0.3, D + 0.6), flat(0x2e2b28, { rough: .95 }));
+  const roof = new THREE.Mesh(SHAPE.Box(W + 0.6, 0.3, D + 0.6), flat(0x2e2b28, { rough: .95 }));
   roof.position.set(x, y + H, z); world.add(roof);
 
   // the hex sign, painted over. white, thick, sloppy, recent-ish.
-  const under = new THREE.Mesh(new THREE.CircleGeometry(0.95, 28), new THREE.MeshStandardMaterial({
+  const under = new THREE.Mesh(SHAPE.Circle(0.95, 28), new THREE.MeshStandardMaterial({
     map: T.hexsign(true), roughness: .92
   }));
   under.position.set(x, y + 3.6, z + D / 2 + 0.03);
   world.add(under);
-  const over = new THREE.Mesh(new THREE.CircleGeometry(1.05, 28), flat(0xe8e4d8, { rough: .97 }));
+  const over = new THREE.Mesh(SHAPE.Circle(1.05, 28), flat(0xe8e4d8, { rough: .97 }));
   over.position.set(x, y + 3.6, z + D / 2 + 0.05);
   world.add(over);
   h.refs.hexUnder = under;
@@ -649,10 +649,10 @@ function buildBarn(world, { x, y, z }) {
 
   // the neighbours' barns still have theirs, cheerfully
   [[-22, 6], [24, -4]].forEach(([ox, oz], i) => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(9, 5, 7), tiled(MAT.brick, 9, 5));
+    const b = new THREE.Mesh(SHAPE.Box(9, 5, 7), tiled(MAT.brick, 9, 5));
     b.position.set(x + ox, y + 2.5, z + oz); world.add(b);
     world.collide(x + ox, y, z + oz, 9, 5, 7, 'barn2');
-    const hx = new THREE.Mesh(new THREE.CircleGeometry(0.7, 24), new THREE.MeshStandardMaterial({ map: T.hexsign(false), roughness: .92 }));
+    const hx = new THREE.Mesh(SHAPE.Circle(0.7, 24), new THREE.MeshStandardMaterial({ map: T.hexsign(false), roughness: .92 }));
     hx.position.set(x + ox, y + 3.0, z + oz + 3.55); world.add(hx);
   });
   h.pos = { x, y, z };
@@ -752,7 +752,7 @@ function buildGraffiti(world, { x, y, z }) {
   g.fillText('if you are reading this i was right', 700, 906);
   g.restore();
   const t = new THREE.CanvasTexture(c);
-  const road = new THREE.Mesh(new THREE.PlaneGeometry(14, 90), new THREE.MeshStandardMaterial({ map: t, roughness: .93 }));
+  const road = new THREE.Mesh(SHAPE.Plane(14, 90), new THREE.MeshStandardMaterial({ map: t, roughness: .93 }));
   road.rotation.x = -Math.PI / 2;
   road.position.set(x, y + 0.02, z);
   world.add(road);
@@ -846,10 +846,13 @@ function scatterTapes(ctx, L) {
     tape.position.set(pos[0], pos[1], pos[2]);
     tape.rotation.y = Math.random() * 3;
     world.add(tape);
-    // a faint glint so curiosity is rewarded without a waypoint
-    const glint = new THREE.PointLight(0xE8A653, 0.22, 1.2, 2);
-    glint.position.set(pos[0], pos[1] + 0.1, pos[2]);
-    world.add(glint);
+    // a faint glint so curiosity is rewarded without a waypoint.
+    // Through world.bulb so it joins the light pool: twelve of these are
+    // scattered over 220 metres, and as scene lights every one of them
+    // was being shaded on every pixel of every other part of town.
+    world.bulb(pos[0], pos[1] + 0.1, pos[2], {
+      color: 0xE8A653, intensity: 0.22, dist: 1.2, decay: 2, emissive: false
+    });
     world.interact(tape, {
       label: 'Microcassette', dist: 2.2, once: true,
       use: async () => {

@@ -10,7 +10,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { MAT, flat, tiled, T } from './mat.js';
-import { SCALE, BOX, CYL, SPH, PLN } from './world.js';
+import { SHAPE, SCALE, BOX, CYL, SPH, PLN } from './world.js';
 import { makeDoor } from './door.js';
 import {
   counter, sofa, chair, bed, shelfUnit, woodStove, tv, clutter,
@@ -37,7 +37,7 @@ export function buildVaskoHouse(world, { x = 0, y = 0, z = 0, state = 'lived', i
     const px = x + i * 6.6;
     if (i > 0) {
       const shellW = 6.4, shellD = 8.0, shellH = 5.6;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(shellW, shellH, shellD), tiled(MAT.shingle, shellW, shellH));
+      const b = new THREE.Mesh(SHAPE.Box(shellW, shellH, shellD), tiled(MAT.shingle, shellW, shellH));
       b.position.set(px, y + shellH / 2, z);
       b.castShadow = true; b.receiveShadow = true;
       world.add(b);
@@ -189,7 +189,7 @@ export function buildVaskoHouse(world, { x = 0, y = 0, z = 0, state = 'lived', i
   world.wallWithDoor(rX, rZ + 1.55, 3.0, -1.0, { axis: 'x', h: 2.2, y: UPY, thick: 0.1, mat: MAT.wallpaper });
   world.wall(rX + 1.55, rZ, 3.0, { axis: 'z', h: 2.2, y: UPY, thick: 0.1, mat: MAT.wallpaper });
   // the sloped ceiling
-  const slope = new THREE.Mesh(new THREE.PlaneGeometry(3.0, 2.3), tiled(MAT.plaster, 3.0, 2.3));
+  const slope = new THREE.Mesh(SHAPE.Plane(3.0, 2.3), tiled(MAT.plaster, 3.0, 2.3));
   slope.position.set(rX, UPY + 1.75, rZ - 0.7);
   slope.rotation.set(-Math.PI / 2 + 0.5, 0, 0);
   world.add(slope);
@@ -323,7 +323,7 @@ export function chainlink(world, x, y, z, len, rot = 0) {
   }
   const t = new THREE.CanvasTexture(c);
   t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(len * 1.6, 1.6);
-  const fence = new THREE.Mesh(new THREE.PlaneGeometry(len, 1.28), new THREE.MeshStandardMaterial({
+  const fence = new THREE.Mesh(SHAPE.Plane(len, 1.28), new THREE.MeshStandardMaterial({
     map: t, transparent: true, alphaTest: 0.35, side: THREE.DoubleSide, roughness: .6, metalness: .4
   }));
   fence.position.y = 0.64; g.add(fence);

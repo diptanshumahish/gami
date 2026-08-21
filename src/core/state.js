@@ -131,8 +131,9 @@ export function addNote(text, id = text) {
 export function doneNote(id) {
   state.set(s => ({ notes: s.notes.map(n => n.id === id ? { ...n, done: true } : n) }));
 }
-export function addMessage(from, text, time) {
-  state.set(s => ({ messages: [...s.messages, { from, text, time }] }));
+/** `who` names the thread; Recca's is the default and the only one that matters. */
+export function addMessage(from, text, time, who = null) {
+  state.set(s => ({ messages: [...s.messages, who ? { from, text, time, who } : { from, text, time }] }));
 }
 export function addPhoto(shot) {
   state.set(s => ({ gallery: [...s.gallery, shot] }));

@@ -28,6 +28,7 @@
    builds one; see the bottom of this file for how.
    ============================================================ */
 import { hz } from './music.js';
+import { pianoBuffer, pianoRegister } from './piano.js';
 
 /* ============================================================
    THE STATIONS
@@ -44,37 +45,63 @@ const STATIONS = {
 
      Slow, hazy, a lot of room on the piano, a melody that mostly
      falls. Written here, not covered from anywhere: the chord
-     cycle is vi-IV-I-V with ninths and major sevenths on it, which
-     is the most common progression in popular music and belongs to
-     nobody, and the tune over the top is its own.
+     cycles are vi-IV-I-V and i-VI-III-VII with ninths and major
+     sevenths on them, which belong to nobody, and the tunes over
+     the top are their own.
 
      This is also why the set has an FM channel and a `verb` send:
-     the AM band would take the reverb off it and leave a music box.
-
-     Title: "Come Home Late". */
+     the AM band would take the reverb off it and leave a music box. */
   late_night: {
-    call: 'WQFM 104.1', name: 'Come Home Late',
-    bpm: 68, meter: 4, band: 'piano', drums: 'none', swing: 0,
+    call: 'WQFM 104.1',
+    band: 'piano', drums: 'none', swing: 0,
     fm: true, verb: 0.62, tone: 12000, presence: 0.16,
-    bars: [
-      { bass: 'C2',  tones: ['Eb3', 'G3', 'Bb3', 'D4'], colour: 'Eb4' },   // Cm9
-      { bass: 'Ab1', tones: ['C3', 'Eb3', 'G3', 'Bb3'], colour: 'C4' },    // Abmaj7
-      { bass: 'Eb2', tones: ['G3', 'Bb3', 'D4', 'F4'],  colour: 'G4' },    // Ebmaj9
-      { bass: 'Bb1', tones: ['D3', 'F3', 'Ab3', 'C4'],  colour: 'D4' },    // Bb7
-      { bass: 'C2',  tones: ['Eb3', 'G3', 'Bb3', 'D4'], colour: 'Bb4' },
-      { bass: 'Ab1', tones: ['C3', 'Eb3', 'G3', 'Bb3'], colour: 'Eb4' },
-      { bass: 'F1',  tones: ['Ab2', 'C3', 'Eb3', 'G3'], colour: 'Ab4' },   // Fm7
-      { bass: 'Bb1', tones: ['D3', 'F3', 'Ab3', 'C4'],  colour: 'F4' }
-    ],
-    phrases: [
-      [['Bb4', 0, 2, .46], ['C5', 2, 1, .40], ['Bb4', 3, 1, .38], ['G4', 4, 4, .46]],
-      [['Ab4', 0, 1.5, .42], ['G4', 1.5, 1.5, .40], ['F4', 3, 2, .42], ['Eb4', 5, 3, .44]],
-      [['Eb5', 0, 2, .48], ['D5', 2, 2, .44], ['Bb4', 4, 4, .46]],
-      [['C5', 0, 1, .42], ['D5', 1, 1, .42], ['Eb5', 2, 3, .50], ['D5', 5, 3, .44]],
-      [['G4', 0, 2, .42], ['Bb4', 2, 2, .44], ['C5', 4, 4, .46]],
-      [['F4', 0, 3, .44], ['Eb4', 3, 1, .38], ['D4', 4, 4, .42]],
-      [['Bb4', 0, 1, .42], ['C5', 1, 1, .42], ['D5', 2, 2, .46], ['Eb5', 4, 4, .50]],
-      [['Bb4', 0, 8, .46]]
+    songs: [
+      {
+        name: 'Come Home Late', bpm: 68, meter: 4, len: 40,
+        bars: [
+          { bass: 'C2',  tones: ['Eb3', 'G3', 'Bb3', 'D4'], colour: 'Eb4' },   // Cm9
+          { bass: 'Ab1', tones: ['C3', 'Eb3', 'G3', 'Bb3'], colour: 'C4' },    // Abmaj7
+          { bass: 'Eb2', tones: ['G3', 'Bb3', 'D4', 'F4'],  colour: 'G4' },    // Ebmaj9
+          { bass: 'Bb1', tones: ['D3', 'F3', 'Ab3', 'C4'],  colour: 'D4' },    // Bb7
+          { bass: 'C2',  tones: ['Eb3', 'G3', 'Bb3', 'D4'], colour: 'Bb4' },
+          { bass: 'Ab1', tones: ['C3', 'Eb3', 'G3', 'Bb3'], colour: 'Eb4' },
+          { bass: 'F1',  tones: ['Ab2', 'C3', 'Eb3', 'G3'], colour: 'Ab4' },   // Fm7
+          { bass: 'Bb1', tones: ['D3', 'F3', 'Ab3', 'C4'],  colour: 'F4' }
+        ],
+        phrases: [
+          [['Bb4', 0, 2, .46], ['C5', 2, 1, .40], ['Bb4', 3, 1, .38], ['G4', 4, 4, .46]],
+          [['Ab4', 0, 1.5, .42], ['G4', 1.5, 1.5, .40], ['F4', 3, 2, .42], ['Eb4', 5, 3, .44]],
+          [['Eb5', 0, 2, .48], ['D5', 2, 2, .44], ['Bb4', 4, 4, .46]],
+          [['C5', 0, 1, .42], ['D5', 1, 1, .42], ['Eb5', 2, 3, .50], ['D5', 5, 3, .44]],
+          [['G4', 0, 2, .42], ['Bb4', 2, 2, .44], ['C5', 4, 4, .46]],
+          [['F4', 0, 3, .44], ['Eb4', 3, 1, .38], ['D4', 4, 4, .42]],
+          [['Bb4', 0, 1, .42], ['C5', 1, 1, .42], ['D5', 2, 2, .46], ['Eb5', 4, 4, .50]],
+          [['Bb4', 0, 8, .46]]
+        ]
+      },
+      {
+        name: 'Leave the Porch Light', bpm: 64, meter: 4, len: 40,
+        bars: [
+          { bass: 'F1',  tones: ['Ab3', 'C4', 'Eb4', 'G4'],  colour: 'Ab4' },  // Fm9
+          { bass: 'Db2', tones: ['F3', 'Ab3', 'C4', 'Eb4'],  colour: 'Db4' },  // Dbmaj7
+          { bass: 'Ab1', tones: ['C3', 'Eb3', 'G3', 'Bb3'],  colour: 'C4' },   // Abmaj9
+          { bass: 'Eb2', tones: ['G3', 'Bb3', 'Db4', 'F4'],  colour: 'G4' },   // Eb7sus
+          { bass: 'F1',  tones: ['Ab3', 'C4', 'Eb4', 'G4'],  colour: 'C5' },
+          { bass: 'Db2', tones: ['F3', 'Ab3', 'C4', 'Eb4'],  colour: 'F4' },
+          { bass: 'Bb1', tones: ['Db3', 'F3', 'Ab3', 'C4'],  colour: 'Db4' },  // Bbm7
+          { bass: 'C2',  tones: ['E3', 'Bb3', 'Db4', 'G4'],  colour: 'G4' }    // C7b9
+        ],
+        phrases: [
+          [['Ab4', 0, 2, .44], ['G4', 2, 1, .38], ['F4', 3, 1, .36], ['C5', 4, 4, .46]],
+          [['Db5', 0, 1.5, .44], ['C5', 1.5, 1.5, .40], ['Ab4', 3, 2, .40], ['F4', 5, 3, .42]],
+          [['Eb5', 0, 2, .46], ['F5', 2, 2, .44], ['C5', 4, 4, .46]],
+          [['Bb4', 0, 1, .40], ['C5', 1, 1, .40], ['Db5', 2, 3, .46], ['C5', 5, 3, .42]],
+          [['Ab4', 0, 2, .42], ['Bb4', 2, 2, .42], ['C5', 4, 2, .44], ['Eb5', 6, 2, .44]],
+          [['F5', 0, 3, .46], ['Eb5', 3, 1, .38], ['Db5', 4, 4, .42]],
+          [['C5', 0, 1, .40], ['Db5', 1, 1, .40], ['Eb5', 2, 2, .44], ['F5', 4, 4, .48]],
+          [['F4', 0, 8, .42]]
+        ]
+      }
     ]
   },
 
@@ -88,33 +115,59 @@ const STATIONS = {
      rather than the notes: the loop is short and repeats without
      apology, the kit is muffled and dragged eight milliseconds
      behind the grid, the record it is supposedly sampled from has
-     dust on it, and the tape it was dubbed to has a wobble.
-
-     Title: "Night Shift". */
+     dust on it, and the tape it was dubbed to has a wobble. */
   lofi: {
-    call: 'WBRE 88.3', name: 'Night Shift',
-    bpm: 78, meter: 4, band: 'lofi', drums: 'lofi',
+    call: 'WBRE 88.3',
+    band: 'lofi', drums: 'lofi',
     swing: 0.62, drag: 0.010, vinyl: 0.55, wow: 1.15,
     fm: true, verb: 0.30, tone: 8200, presence: 0.22,
-    bars: [
-      { bass: 'F1', tones: ['A3', 'C4', 'E4', 'G4'],   colour: 'C5' },   // Fmaj7
-      { bass: 'E2', tones: ['G3', 'B3', 'D4', 'F#4'],  colour: 'B4' },   // Em9
-      { bass: 'D2', tones: ['F3', 'A3', 'C4', 'E4'],   colour: 'A4' },   // Dm9
-      { bass: 'G1', tones: ['B3', 'D4', 'F4', 'A4'],   colour: 'D5' },   // G7
-      { bass: 'C2', tones: ['E3', 'G3', 'B3', 'D4'],   colour: 'G4' },   // Cmaj9
-      { bass: 'A1', tones: ['C4', 'E4', 'G4', 'B4'],   colour: 'E5' },   // Am9
-      { bass: 'D2', tones: ['F3', 'A3', 'C4', 'E4'],   colour: 'F4' },   // Dm7
-      { bass: 'G1', tones: ['C4', 'D4', 'F4', 'A4'],   colour: 'C5' }    // G7sus
-    ],
-    phrases: [
-      [['A4', 0, 1, .38], ['C5', 1, 1.5, .40], ['B4', 2.5, 1.5, .36], ['G4', 4, 3, .40]],
-      [['E4', 0, 1.5, .36], ['G4', 1.5, 1, .36], ['A4', 2.5, 2, .40], ['F4', 5, 3, .38]],
-      [],                                          // let the drums have it
-      [['D5', 0, 1, .40], ['C5', 1, 1, .36], ['A4', 2, 2, .40], ['G4', 4, 4, .38]],
-      [['C5', 0, 2, .40], ['B4', 2, 1, .34], ['G4', 3, 1, .36], ['E4', 4, 4, .38]],
-      [],
-      [['F4', 0, 1, .36], ['G4', 1, 1, .36], ['A4', 2, 1.5, .40], ['C5', 3.5, 4, .42]],
-      [['G4', 0, 6, .38]]
+    songs: [
+      {
+        name: 'Night Shift', bpm: 78, meter: 4, len: 48,
+        bars: [
+          { bass: 'F1', tones: ['A3', 'C4', 'E4', 'G4'],   colour: 'C5' },   // Fmaj7
+          { bass: 'E2', tones: ['G3', 'B3', 'D4', 'F#4'],  colour: 'B4' },   // Em9
+          { bass: 'D2', tones: ['F3', 'A3', 'C4', 'E4'],   colour: 'A4' },   // Dm9
+          { bass: 'G1', tones: ['B3', 'D4', 'F4', 'A4'],   colour: 'D5' },   // G7
+          { bass: 'C2', tones: ['E3', 'G3', 'B3', 'D4'],   colour: 'G4' },   // Cmaj9
+          { bass: 'A1', tones: ['C4', 'E4', 'G4', 'B4'],   colour: 'E5' },   // Am9
+          { bass: 'D2', tones: ['F3', 'A3', 'C4', 'E4'],   colour: 'F4' },   // Dm7
+          { bass: 'G1', tones: ['C4', 'D4', 'F4', 'A4'],   colour: 'C5' }    // G7sus
+        ],
+        phrases: [
+          [['A4', 0, 1, .38], ['C5', 1, 1.5, .40], ['B4', 2.5, 1.5, .36], ['G4', 4, 3, .40]],
+          [['E4', 0, 1.5, .36], ['G4', 1.5, 1, .36], ['A4', 2.5, 2, .40], ['F4', 5, 3, .38]],
+          [],                                          // let the drums have it
+          [['D5', 0, 1, .40], ['C5', 1, 1, .36], ['A4', 2, 2, .40], ['G4', 4, 4, .38]],
+          [['C5', 0, 2, .40], ['B4', 2, 1, .34], ['G4', 3, 1, .36], ['E4', 4, 4, .38]],
+          [],
+          [['F4', 0, 1, .36], ['G4', 1, 1, .36], ['A4', 2, 1.5, .40], ['C5', 3.5, 4, .42]],
+          [['G4', 0, 6, .38]]
+        ]
+      },
+      {
+        name: 'Rain on the Glass', bpm: 74, meter: 4, len: 48,
+        bars: [
+          { bass: 'D2',  tones: ['F3', 'A3', 'C4', 'E4'],    colour: 'A4' },  // Dm9
+          { bass: 'G1',  tones: ['Bb3', 'D4', 'F4', 'A4'],   colour: 'D5' },  // Gm7
+          { bass: 'Bb1', tones: ['D4', 'F4', 'A4', 'C5'],    colour: 'F4' },  // Bbmaj7
+          { bass: 'A1',  tones: ['C#4', 'E4', 'G4', 'Bb4'],  colour: 'E5' },  // A7b9
+          { bass: 'D2',  tones: ['F3', 'A3', 'C4', 'E4'],    colour: 'F4' },
+          { bass: 'F1',  tones: ['A3', 'C4', 'E4', 'G4'],    colour: 'C5' },  // Fmaj7
+          { bass: 'E2',  tones: ['G3', 'Bb3', 'D4'],         colour: 'G4' },  // Em7b5
+          { bass: 'A1',  tones: ['C#4', 'F4', 'G4'],         colour: 'C#5' }  // A7#5
+        ],
+        phrases: [
+          [['A4', 0, 1, .38], ['C5', 1, 1, .38], ['D5', 2, 2, .42], ['A4', 4, 3, .40]],
+          [['F4', 0, 1.5, .36], ['G4', 1.5, 1, .36], ['A4', 2.5, 2.5, .40], ['D5', 5, 3, .40]],
+          [],
+          [['E5', 0, 1, .40], ['D5', 1, 1, .38], ['C5', 2, 2, .40], ['A4', 4, 4, .38]],
+          [['G4', 0, 2, .38], ['A4', 2, 1, .36], ['Bb4', 3, 1, .36], ['A4', 4, 4, .40]],
+          [],
+          [['D5', 0, 1.5, .40], ['C5', 1.5, .5, .34], ['A4', 2, 2, .40], ['F4', 4, 4, .38]],
+          [['D4', 0, 6, .38]]
+        ]
+      }
     ]
   },
 
@@ -125,34 +178,60 @@ const STATIONS = {
      The guitar is a real plucked string (Karplus-Strong, see
      `_stringBuffer`), not a sawtooth pretending: comping is short
      stabs where you hear the pick and the strings stopping, and no
-     filtered oscillator does that.
-
-     Chords are a ii-V chain in B flat. Title: "Late Set". */
+     filtered oscillator does that. */
   jazzhop: {
-    call: 'WNEP 91.5', name: 'Late Set',
-    bpm: 86, meter: 4, band: 'jazzguitar', drums: 'boombap',
+    call: 'WNEP 91.5',
+    band: 'jazzguitar', drums: 'boombap',
     swing: 0.58, drag: 0.008, vinyl: 0.30, wow: 0.55,
     fm: true, verb: 0.34, echo: 0.10, tone: 9000, presence: 0.24,
     gtr: { damp: .52, pick: .30, ring: 2.4, amp: 2400, dbl: 4 },
-    bars: [
-      { bass: 'C2',  tones: ['Eb3', 'Bb3', 'D4', 'G4'],  colour: 'G4' },   // Cm9
-      { bass: 'F1',  tones: ['Eb3', 'A3', 'D4', 'G4'],   colour: 'D4' },   // F13
-      { bass: 'Bb1', tones: ['D3', 'A3', 'C4', 'F4'],    colour: 'F4' },   // Bbmaj9
-      { bass: 'Eb2', tones: ['D3', 'G3', 'Bb3', 'Eb4'],  colour: 'Bb3' },  // Ebmaj7
-      { bass: 'A1',  tones: ['Eb3', 'G3', 'C4'],         colour: 'C4' },   // Am7b5
-      { bass: 'D2',  tones: ['F#3', 'C4', 'Eb4'],        colour: 'Eb4' },  // D7b9
-      { bass: 'G1',  tones: ['Bb2', 'F3', 'A3', 'D4'],   colour: 'D4' },   // Gm9
-      { bass: 'C2',  tones: ['E3', 'Bb3', 'D4', 'G4'],   colour: 'G4' }    // C7
-    ],
-    phrases: [
-      [['G4', 0, 1, .42], ['Bb4', 1, .5, .36], ['C5', 1.5, 1.5, .44], ['G4', 3, 1, .38], ['F4', 4, 3, .42]],
-      [['Eb4', 0, 1.5, .40], ['D4', 1.5, .5, .34], ['F4', 2, 2, .42], ['Bb3', 4, 4, .40]],
-      [],
-      [['D5', 0, 1, .44], ['C5', 1, 1, .38], ['Bb4', 2, 1.5, .42], ['G4', 3.5, 3, .40]],
-      [['C5', 0, 1.5, .42], ['Eb5', 1.5, .5, .38], ['D5', 2, 2, .44], ['Bb4', 4, 4, .42]],
-      [],
-      [['F4', 0, 1, .38], ['G4', 1, 1, .38], ['Bb4', 2, 1, .42], ['D5', 3, 1, .44], ['C5', 4, 4, .44]],
-      [['Bb4', 0, 6, .42]]
+    songs: [
+      {
+        name: 'Late Set', bpm: 86, meter: 4, len: 48,
+        bars: [
+          { bass: 'C2',  tones: ['Eb3', 'Bb3', 'D4', 'G4'],  colour: 'G4' },   // Cm9
+          { bass: 'F1',  tones: ['Eb3', 'A3', 'D4', 'G4'],   colour: 'D4' },   // F13
+          { bass: 'Bb1', tones: ['D3', 'A3', 'C4', 'F4'],    colour: 'F4' },   // Bbmaj9
+          { bass: 'Eb2', tones: ['D3', 'G3', 'Bb3', 'Eb4'],  colour: 'Bb3' },  // Ebmaj7
+          { bass: 'A1',  tones: ['Eb3', 'G3', 'C4'],         colour: 'C4' },   // Am7b5
+          { bass: 'D2',  tones: ['F#3', 'C4', 'Eb4'],        colour: 'Eb4' },  // D7b9
+          { bass: 'G1',  tones: ['Bb2', 'F3', 'A3', 'D4'],   colour: 'D4' },   // Gm9
+          { bass: 'C2',  tones: ['E3', 'Bb3', 'D4', 'G4'],   colour: 'G4' }    // C7
+        ],
+        phrases: [
+          [['G4', 0, 1, .42], ['Bb4', 1, .5, .36], ['C5', 1.5, 1.5, .44], ['G4', 3, 1, .38], ['F4', 4, 3, .42]],
+          [['Eb4', 0, 1.5, .40], ['D4', 1.5, .5, .34], ['F4', 2, 2, .42], ['Bb3', 4, 4, .40]],
+          [],
+          [['D5', 0, 1, .44], ['C5', 1, 1, .38], ['Bb4', 2, 1.5, .42], ['G4', 3.5, 3, .40]],
+          [['C5', 0, 1.5, .42], ['Eb5', 1.5, .5, .38], ['D5', 2, 2, .44], ['Bb4', 4, 4, .42]],
+          [],
+          [['F4', 0, 1, .38], ['G4', 1, 1, .38], ['Bb4', 2, 1, .42], ['D5', 3, 1, .44], ['C5', 4, 4, .44]],
+          [['Bb4', 0, 6, .42]]
+        ]
+      },
+      {
+        name: 'Corner Store', bpm: 90, meter: 4, len: 48,
+        bars: [
+          { bass: 'Eb2', tones: ['G3', 'D4', 'F4', 'Bb4'],   colour: 'Bb4' },  // Ebmaj9
+          { bass: 'C2',  tones: ['Eb3', 'Bb3', 'D4', 'G4'],  colour: 'G4' },   // Cm9
+          { bass: 'F1',  tones: ['Ab3', 'Eb4', 'G4', 'C5'],  colour: 'C5' },   // Fm9
+          { bass: 'Bb1', tones: ['Ab3', 'D4', 'G4'],         colour: 'G4' },   // Bb13
+          { bass: 'G1',  tones: ['Bb3', 'F4', 'A4', 'D5'],   colour: 'D5' },   // Gm9
+          { bass: 'C2',  tones: ['E3', 'Bb3', 'Db4', 'G4'],  colour: 'G4' },   // C7b9
+          { bass: 'F1',  tones: ['Ab3', 'Eb4', 'G4'],        colour: 'Eb4' },  // Fm9
+          { bass: 'Bb1', tones: ['Ab3', 'D4', 'F4'],         colour: 'F4' }    // Bb7
+        ],
+        phrases: [
+          [['Bb4', 0, 1, .42], ['D5', 1, 1, .40], ['F5', 2, 1.5, .44], ['Eb5', 3.5, .5, .36], ['D5', 4, 3, .42]],
+          [['G4', 0, 1.5, .40], ['Ab4', 1.5, .5, .34], ['Bb4', 2, 2, .42], ['C5', 4, 4, .40]],
+          [],
+          [['Eb5', 0, 1, .44], ['D5', 1, 1, .38], ['C5', 2, 1.5, .42], ['Bb4', 3.5, 3, .40]],
+          [['F5', 0, 1.5, .44], ['Eb5', 1.5, .5, .36], ['D5', 2, 2, .42], ['Bb4', 4, 4, .42]],
+          [],
+          [['Ab4', 0, 1, .38], ['Bb4', 1, 1, .38], ['C5', 2, 1, .42], ['Eb5', 3, 1, .44], ['D5', 4, 4, .44]],
+          [['Bb4', 0, 6, .42]]
+        ]
+      }
     ]
   },
 
@@ -164,34 +243,60 @@ const STATIONS = {
      The guitar is the same physical model as the jazz station,
      strung brighter and doubled: two more copies of the string a
      few cents either side, each drifting on its own, which is what
-     a doubled guitar part actually is.
-
-     vi-IV-I-V in A minor. Title: "After Dark". */
+     a doubled guitar part actually is. */
   synthwave: {
-    call: 'WVSN 103.7', name: 'After Dark',
-    bpm: 104, meter: 4, band: 'synthwave', drums: 'gated',
+    call: 'WVSN 103.7',
+    band: 'synthwave', drums: 'gated',
     swing: 0, drag: 0, vinyl: 0, wow: 0.18,
     fm: true, verb: 0.52, echo: 0.34, tone: 13000, presence: 0.14,
     gtr: { damp: .24, pick: .55, ring: 3.4, amp: 5200, dbl: 9 },
-    bars: [
-      { bass: 'A1', tones: ['A3', 'C4', 'E4'],   colour: 'A4' },
-      { bass: 'F1', tones: ['F3', 'A3', 'C4'],   colour: 'C5' },
-      { bass: 'C2', tones: ['C4', 'E4', 'G4'],   colour: 'G4' },
-      { bass: 'G1', tones: ['G3', 'B3', 'D4'],   colour: 'D5' },
-      { bass: 'A1', tones: ['A3', 'C4', 'E4'],   colour: 'E5' },
-      { bass: 'F1', tones: ['F3', 'A3', 'C4'],   colour: 'A4' },
-      { bass: 'D2', tones: ['D4', 'F4', 'A4'],   colour: 'F5' },
-      { bass: 'E2', tones: ['E3', 'G#3', 'B3'],  colour: 'B4' }
-    ],
-    phrases: [
-      [['E5', 0, 2, .46], ['G5', 2, 1, .42], ['A5', 3, 3, .50]],
-      [['E5', 0, 1, .44], ['D5', 1, 1, .40], ['C5', 2, 4, .46]],
-      [],
-      [['A5', 0, 1.5, .50], ['G5', 1.5, .5, .42], ['E5', 2, 2, .46], ['D5', 4, 4, .44]],
-      [['C5', 0, 1, .42], ['E5', 1, 1, .44], ['A5', 2, 4, .52]],
-      [],
-      [['F5', 0, 2, .46], ['E5', 2, 2, .44], ['D5', 4, 4, .46]],
-      [['A4', 0, 8, .44]]
+    songs: [
+      {
+        name: 'After Dark', bpm: 104, meter: 4, len: 56,
+        bars: [
+          { bass: 'A1', tones: ['A3', 'C4', 'E4'],   colour: 'A4' },
+          { bass: 'F1', tones: ['F3', 'A3', 'C4'],   colour: 'C5' },
+          { bass: 'C2', tones: ['C4', 'E4', 'G4'],   colour: 'G4' },
+          { bass: 'G1', tones: ['G3', 'B3', 'D4'],   colour: 'D5' },
+          { bass: 'A1', tones: ['A3', 'C4', 'E4'],   colour: 'E5' },
+          { bass: 'F1', tones: ['F3', 'A3', 'C4'],   colour: 'A4' },
+          { bass: 'D2', tones: ['D4', 'F4', 'A4'],   colour: 'F5' },
+          { bass: 'E2', tones: ['E3', 'G#3', 'B3'],  colour: 'B4' }
+        ],
+        phrases: [
+          [['E5', 0, 2, .46], ['G5', 2, 1, .42], ['A5', 3, 3, .50]],
+          [['E5', 0, 1, .44], ['D5', 1, 1, .40], ['C5', 2, 4, .46]],
+          [],
+          [['A5', 0, 1.5, .50], ['G5', 1.5, .5, .42], ['E5', 2, 2, .46], ['D5', 4, 4, .44]],
+          [['C5', 0, 1, .42], ['E5', 1, 1, .44], ['A5', 2, 4, .52]],
+          [],
+          [['F5', 0, 2, .46], ['E5', 2, 2, .44], ['D5', 4, 4, .46]],
+          [['A4', 0, 8, .44]]
+        ]
+      },
+      {
+        name: 'Ridge Road', bpm: 100, meter: 4, len: 56,
+        bars: [
+          { bass: 'E2', tones: ['E3', 'G3', 'B3'],    colour: 'B4' },
+          { bass: 'C2', tones: ['C4', 'E4', 'G4'],    colour: 'G4' },
+          { bass: 'G1', tones: ['G3', 'B3', 'D4'],    colour: 'D5' },
+          { bass: 'D2', tones: ['D4', 'F#4', 'A4'],   colour: 'A4' },
+          { bass: 'E2', tones: ['E3', 'G3', 'B3'],    colour: 'E5' },
+          { bass: 'C2', tones: ['C4', 'E4', 'G4'],    colour: 'C5' },
+          { bass: 'A1', tones: ['A3', 'C4', 'E4'],    colour: 'E5' },
+          { bass: 'B1', tones: ['B3', 'D#4', 'F#4'],  colour: 'F#5' }
+        ],
+        phrases: [
+          [['B4', 0, 2, .46], ['D5', 2, 1, .42], ['E5', 3, 3, .50]],
+          [['G5', 0, 1, .44], ['F#5', 1, 1, .40], ['E5', 2, 4, .46]],
+          [],
+          [['E5', 0, 1.5, .50], ['D5', 1.5, .5, .42], ['B4', 2, 2, .46], ['A4', 4, 4, .44]],
+          [['G4', 0, 1, .42], ['B4', 1, 1, .44], ['E5', 2, 4, .52]],
+          [],
+          [['C5', 0, 2, .46], ['B4', 2, 2, .44], ['A4', 4, 4, .46]],
+          [['E5', 0, 8, .44]]
+        ]
+      }
     ]
   },
 
@@ -205,7 +310,7 @@ const STATIONS = {
     call: 'WVIA 1240', name: 'Talk',
     band: 'talk', bpm: 60, meter: 4, drums: 'none', swing: 0,
     tone: 2600, presence: 0.6,
-    bars: [], phrases: []
+    songs: [], bars: [], phrases: []
   },
 
   /* ------------------------------------------------------- off-band
@@ -214,14 +319,21 @@ const STATIONS = {
     call: '', name: 'Static',
     band: 'none', bpm: 60, meter: 4, drums: 'none', swing: 0,
     tone: 3400, presence: 0.9,
-    bars: [], phrases: []
+    songs: [], bars: [], phrases: []
   }
 };
+
+/** A station as it is right now: the set's fixed character plus the song on it. */
+function view(id, songIx = 0) {
+  const base = STATIONS[id] || STATIONS.static;
+  const song = base.songs[songIx] || base.songs[0] || {};
+  return { ...base, ...song, id };
+}
 
 export const STATION_IDS = Object.keys(STATIONS);
 export const stationInfo = (id) => {
   const s = STATIONS[id];
-  return s ? { id, call: s.call, name: s.name } : null;
+  return s ? { id, call: s.call, name: s.songs[0]?.name || s.name, songs: s.songs.map(x => x.name) } : null;
 };
 
 export class Radio {
@@ -244,7 +356,10 @@ export class Radio {
     this.e = engine;
     this.pos = pos;
     this.stationId = STATIONS[station] ? station : 'static';
-    this.station = STATIONS[this.stationId];
+    this.songIx = 0;
+    this.songBar = 0;          // where we are in the current record
+    this.breakUntil = 0;       // the gap between records, on the audio clock
+    this.station = view(this.stationId, 0);
     this.volume = volume;
     this.signal = signal;
     this.busName = bus;
@@ -469,67 +584,37 @@ export class Radio {
    * The piano on the FM station. Not the score's instrument: that
    * one is felt-muted and lives in an unheated room, and this one is
    * a close-miked grand with the lid up on a record somebody made on
-   * purpose. Brighter partials, a real attack, and a long tail.
+   * purpose. The string is rendered in piano.js; this is the player,
+   * and the player here plays a little harder than the score does.
    */
   _piano(f, when, dur, vel) {
     const ctx = this.ctx;
-    if (!this._pw) {
-      const amps = [0, 1, 0.55, 0.38, 0.22, 0.15, 0.10, 0.07, 0.05, 0.035, 0.025, 0.018, 0.013, 0.009];
-      const real = new Float32Array(amps.length), imag = new Float32Array(amps.length);
-      for (let i = 0; i < amps.length; i++) imag[i] = amps[i];
-      this._pw = ctx.createPeriodicWave(real, imag, { disableNormalization: false });
-    }
-    const reg = Math.min(1, Math.max(0, Math.log2(f / 41.2) / 5.6));
-    const ring = dur + (1 - reg) * 3.2 + 1.4;
-    const peak = vel * (0.16 - reg * 0.045);
+    const buf = pianoBuffer(ctx, f, 'grand');
+    if (!buf) return;
+    const reg = pianoRegister(f);
+    const ring = Math.min(buf.duration - 0.05, dur + 1.0 + (1 - reg) * 2.6);
+    const peak = vel * (0.22 - reg * 0.06);
     if (!(peak > 0)) return;
 
     const vca = ctx.createGain();
     vca.gain.setValueAtTime(0.0001, when);
-    vca.gain.exponentialRampToValueAtTime(peak, when + 0.008 + (1 - reg) * 0.05);
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.00012, peak * 0.28), when + 0.3 + (1 - reg) * 0.6);
-    vca.gain.exponentialRampToValueAtTime(0.0001, when + ring);
+    vca.gain.exponentialRampToValueAtTime(peak, when + 0.003 + (1 - reg) * 0.012);
+    vca.gain.setValueAtTime(peak, when + ring);
+    vca.gain.exponentialRampToValueAtTime(0.0001, when + ring + 0.5);     // the dampers
 
+    // the hammer opens with velocity: a quiet note is a darker note
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass'; tone.Q.value = 0.5;
-    tone.frequency.setValueAtTime(Math.min(13000, f * 14 + 1600), when);
-    tone.frequency.exponentialRampToValueAtTime(Math.max(400, f * 3.4), when + 1.1 + (1 - reg) * 1.5);
+    const open = (1300 + f * 4.5) * (0.5 + vel * 1.15);
+    tone.frequency.setValueAtTime(Math.min(14000, Math.max(f * 2.5, open)), when);
+    tone.frequency.exponentialRampToValueAtTime(Math.max(400, f * 2.8), when + 1.3 + (1 - reg) * 1.6);
     tone.connect(vca).connect(this.in);
 
-    [[-1.4, 0.60], [0, 0.74], [1.7, 0.42]].forEach(([cents, g0], i) => {
-      const o = ctx.createOscillator();
-      o.setPeriodicWave(this._pw);
-      o.frequency.value = f * (1 + i * 0.0003);
-      o.detune.value = cents;
-      const g = ctx.createGain(); g.gain.value = g0;
-      o.connect(g).connect(tone);
-      o.start(when); o.stop(when + ring + 0.1);
-    });
-
-    // the fundamental, for the left hand
-    if (reg < 0.5 && f > 24) {
-      const sub = ctx.createOscillator();
-      sub.type = 'sine'; sub.frequency.value = f;
-      const sg = ctx.createGain();
-      const sa = peak * 0.55 * (1 - reg / 0.5), sd = ring * 0.8;
-      sg.gain.setValueAtTime(0.0001, when);
-      sg.gain.exponentialRampToValueAtTime(Math.max(0.00012, sa), when + 0.05);
-      sg.gain.exponentialRampToValueAtTime(0.0001, when + sd);
-      sub.connect(sg).connect(this.in);
-      sub.start(when); sub.stop(when + sd + 0.1);
-    }
-
-    // the hammer
-    const nse = ctx.createBufferSource();
-    nse.buffer = this.e.noise.pink;
-    const nb = ctx.createBiquadFilter();
-    nb.type = 'bandpass'; nb.frequency.value = Math.min(6000, f * 4.5); nb.Q.value = 0.7;
-    const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.0001, when);
-    ng.gain.exponentialRampToValueAtTime(Math.max(0.00012, peak * 0.35 * Math.min(1, 0.25 + reg * 1.6)), when + 0.005);
-    ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.08);
-    nse.connect(nb).connect(ng).connect(this.in);
-    nse.start(when, Math.random() * 2, 0.25); nse.stop(when + 0.3);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    this._wow(src);
+    src.connect(tone);
+    src.start(when); src.stop(when + ring + 0.55);
   }
 
   // ============================================================ knobs
@@ -546,6 +631,7 @@ export class Radio {
       this.out.gain.setValueAtTime(0.0001, t);
       this.out.gain.exponentialRampToValueAtTime(Math.max(0.0002, this.volume), t + 0.35);
       this.bar = 0;
+      this.breakUntil = 0;
       this.nextTime = t + 0.25;
       this.timer = setInterval(() => this._schedule(), 200);
       this._scheduleDropouts();
@@ -633,11 +719,18 @@ export class Radio {
 
   _land(id) {
     this.stationId = id;
-    this.station = STATIONS[id];
+    const songs = STATIONS[id].songs;
+    this.songIx = songs.length ? Math.floor(Math.random() * songs.length) : 0;
+    this.station = view(id, this.songIx);
     this.pending = null;
     this.tuneAt = 0;
-    this.bar = 0;
+    // you never tune into the top of a record
+    const len = this.station.len || 48;
+    this.songBar = songs.length ? Math.floor(Math.random() * len * 0.65) : 0;
+    this.bar = this.songBar;
+    this.breakUntil = 0;
     this.nextTime = this.e.t + 0.12;
+    if (this.in) { this.in.gain.cancelScheduledValues(this.e.t); this.in.gain.setValueAtTime(1, this.e.t); }
     const S2 = this.station, t2 = this.e.t;
     if (this.wowBus) this.wowBus.gain.setTargetAtTime(S2.wow || 0, t2, 0.3);
     if (this.echoSend) this.echoSend.gain.setTargetAtTime(S2.echo || 0, t2, 0.3);
@@ -756,34 +849,52 @@ export class Radio {
     n.start(when, Math.random() * 1.2, d + 0.1); n.stop(when + d + 0.12);
   }
 
-  /** Electric piano. The bark on the attack is the tine. */
+  /**
+   * Electric piano. A tine struck by a hammer next to a pickup is,
+   * to a very good approximation, a sine being frequency-modulated
+   * by another sine at the same pitch: the modulation depth is the
+   * bark of the hammer and it falls away in a quarter of a second,
+   * leaving the bell-like body. That is how every electric piano on
+   * every record of this kind was made, and it is done here the same
+   * way, as actual FM in the graph, not a sine with a click on it.
+   */
   _rhodes(f, when, dur, vel) {
     const ctx = this.ctx;
-    const d = dur + 1.0;
+    const d = dur + 1.1;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vel * 0.115), when + 0.014);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.00012, vel * 0.045), when + 0.35);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, vel * 0.125), when + 0.007);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.00012, vel * 0.048), when + 0.42);
     g.gain.exponentialRampToValueAtTime(0.0001, when + d);
     g.connect(this.in);
-    [[1, 1], [2, 0.22], [3, 0.07]].forEach(([m, a]) => {
-      const o = ctx.createOscillator();
-      o.type = 'sine'; o.frequency.value = f * m;
-      o.detune.value = (Math.random() * 2 - 1) * 3;
-      this._wow(o);
-      const og = ctx.createGain(); og.gain.value = a;
-      o.connect(og).connect(g);
-      o.start(when); o.stop(when + d + 0.1);
-    });
+
+    // the body: carrier and modulator at 1:1, the index barking then settling
+    const car = ctx.createOscillator();
+    car.type = 'sine'; car.frequency.value = f;
+    const mod = ctx.createOscillator();
+    mod.type = 'sine'; mod.frequency.value = f;
+    mod.detune.value = 0.6;
+    this._wow(car); this._wow(mod);
+    const idx = ctx.createGain();
+    const bark = f * (0.9 + vel * 1.9);
+    idx.gain.setValueAtTime(bark, when);
+    idx.gain.exponentialRampToValueAtTime(Math.max(1, f * 0.22), when + 0.26);
+    idx.gain.exponentialRampToValueAtTime(Math.max(1, f * 0.06), when + d);
+    mod.connect(idx).connect(car.frequency);
+    car.connect(g);
+    car.start(when); car.stop(when + d + 0.1);
+    mod.start(when); mod.stop(when + d + 0.1);
+
+    // the tine itself: a high, short ping, not quite on the series
     const t = ctx.createOscillator();
     t.type = 'sine'; t.frequency.value = f * 6.04;
     this._wow(t);
     const tg = ctx.createGain();
     tg.gain.setValueAtTime(0.0001, when);
-    tg.gain.exponentialRampToValueAtTime(Math.max(0.0002, vel * 0.030), when + 0.006);
-    tg.gain.exponentialRampToValueAtTime(0.0001, when + 0.22);
+    tg.gain.exponentialRampToValueAtTime(Math.max(0.0002, vel * 0.026), when + 0.004);
+    tg.gain.exponentialRampToValueAtTime(0.0001, when + 0.20);
     t.connect(tg).connect(this.in);
-    t.start(when); t.stop(when + 0.26);
+    t.start(when); t.stop(when + 0.24);
   }
 
   /** Round electric bass. All fundamental, no character above 400 Hz. */
@@ -1050,12 +1161,80 @@ export class Radio {
     if (!S.bars.length) { this.nextTime = e.t + 0.5; return; }
     const AHEAD = 0.9;
     let guard = 0;
-    while (this.nextTime < e.t + AHEAD && guard++ < 16) {
-      this._bar(this.nextTime);
-      this.nextTime += this.beat * S.meter;
-      this.bar++;
-    }
+    while (this.nextTime < e.t + AHEAD && guard++ < 16) this._advance();
     if (guard >= 16) this.nextTime = e.t + 0.3;
+  }
+
+  /**
+   * One bar of programme, or the gap between two records. The
+   * bounce tool calls this directly to lay a take down in advance,
+   * so everything it does is scheduled against `nextTime`, never
+   * against the clock.
+   */
+  _advance() {
+    const S = this.station;
+    if (this.breakUntil) {
+      if (this.nextTime < this.breakUntil) { this.nextTime = this.breakUntil; return; }
+      this._nextSong();
+    }
+    this._bar(this.nextTime);
+    const barLen = this.beat * S.meter;
+    const len = S.len || 48;
+    // a record fades. the last three bars go down the way a DJ
+    // takes them down, and the next one does not start on the beat
+    if (this.songBar === len - 3 && this.in) {
+      this.in.gain.cancelScheduledValues(this.nextTime);
+      this.in.gain.setValueAtTime(1, this.nextTime);
+      this.in.gain.linearRampToValueAtTime(0.0, this.nextTime + barLen * 3 - 0.05);
+    }
+    this.nextTime += barLen;
+    this.bar++;
+    this.songBar++;
+    if (this.songBar >= len) {
+      const gap = 2.2 + Math.random() * 2.6;
+      this._break(this.nextTime, gap);
+      this.breakUntil = this.nextTime + gap;
+    }
+  }
+
+  /** The next record. Same station, same set, a different song. */
+  _nextSong() {
+    const songs = STATIONS[this.stationId].songs;
+    if (songs.length > 1) {
+      let ix = Math.floor(Math.random() * (songs.length - 1));
+      if (ix >= this.songIx) ix++;
+      this.songIx = ix;
+    }
+    this.station = view(this.stationId, this.songIx);
+    this.songBar = 0;
+    this.breakUntil = 0;
+    const S = this.station, t = this.nextTime;
+    if (this.in) { this.in.gain.cancelScheduledValues(t); this.in.gain.setValueAtTime(1, t); }
+    if (this.echo && S.bpm) this.echo.delayTime.setTargetAtTime((60 / S.bpm) * 0.75, t, 0.3);
+  }
+
+  /**
+   * Between records. On FM that is the station: a three-note ident
+   * on the electric piano and a man saying the call letters and the
+   * time, neither of which you can make out from across the room.
+   * Everything lands on `in`, so it arrives through the same channel
+   * as the music.
+   */
+  _break(t0, secs) {
+    if (!this.in) return;
+    const S = this.station;
+    if (S.fm && Math.random() < 0.7) {
+      const root = hz(['Bb4', 'C5', 'Eb5', 'F5', 'G4'][Math.floor(Math.random() * 5)]);
+      [[1, 0], [1.25, 0.19], [1.5, 0.38]].forEach(([m, at]) => this._rhodes(root * m, t0 + 0.35 + at, 0.9, 0.30));
+    }
+    if (secs > 2.6 && Math.random() < 0.8) {
+      const talkFor = secs - 1.9;
+      let at = t0 + 1.4;
+      let guard = 0;
+      while (at < t0 + 1.4 + talkFor && guard++ < 6) {
+        at += this._syllables(at, 3 + Math.floor(Math.random() * 6), 0.55) + 0.18 + Math.random() * 0.35;
+      }
+    }
   }
 
   _bar(t0) {
@@ -1064,6 +1243,12 @@ export class Radio {
     const b = this.beat, m = S.meter;
     const j = () => (Math.random() - 0.5) * 0.018;
     const sw = (beat) => this._swung(beat);
+    // the arrangement. every record has a place where the drums step
+    // out for two bars and a place where they fill back in; without
+    // those it is a stamp, not a song.
+    const sb = this.songBar;
+    const thin = (sb % 32) === 24 || (sb % 32) === 25;
+    const fill = (sb % 16) === 15;
 
     switch (S.band) {
       case 'piano': {
@@ -1123,13 +1308,16 @@ export class Radio {
       // harder and squarer than the lofi kit, and much less dragged
       const D = S.drag || 0;
       const at = (beat) => t0 + this._swung(beat) * b + D;
-      this._kick(t0, 1.0);
-      this._kick(at(1.5), 0.55);
-      this._kick(at(2.5), 0.85);
-      if (this.bar % 2 === 1) this._kick(at(3.75), 0.45);
-      this._snare(at(1), 1.0);
-      this._snare(at(3), 1.0);
-      if (this.bar % 4 === 3) this._snare(at(3.5), 0.8, { ghost: true });
+      if (!thin) {
+        this._kick(t0, 1.0);
+        this._kick(at(1.5), 0.55);
+        this._kick(at(2.5), 0.85);
+        if (this.bar % 2 === 1) this._kick(at(3.75), 0.45);
+        this._snare(at(1), 1.0);
+        this._snare(at(3), fill ? 0.7 : 1.0);
+        if (this.bar % 4 === 3 && !fill) this._snare(at(3.5), 0.8, { ghost: true });
+        if (fill) for (let k = 1; k < 4; k++) this._snare(t0 + b * (3 + k * 0.25) + D, 0.45 + k * 0.16, { ghost: k < 3 });
+      }
       for (let k = 0; k < m * 2; k++) this._hat(at(k * 0.5), k % 2 ? 0.34 : 0.5);
     } else if (S.drums === 'gated') {
       this._kick(t0, 1.0);
@@ -1147,12 +1335,15 @@ export class Radio {
       // so the loop drags against its own tempo.
       const D = S.drag || 0;
       const at = (beat) => t0 + this._swung(beat) * b + D;
-      this._kick(t0 + D * 0.35, 0.95);
-      this._kick(at(2.5), 0.60);
-      if (this.bar % 4 === 3) this._kick(at(3.5), 0.42);
-      this._snare(at(1), 0.85);
-      this._snare(at(3), 0.90);
-      if (this.bar % 2 === 1) this._snare(at(3.5), 0.7, { ghost: true });
+      if (!thin) {
+        this._kick(t0 + D * 0.35, 0.95);
+        this._kick(at(2.5), 0.60);
+        if (this.bar % 4 === 3) this._kick(at(3.5), 0.42);
+        this._snare(at(1), 0.85);
+        this._snare(at(3), fill ? 0.6 : 0.90);
+        if (this.bar % 2 === 1 && !fill) this._snare(at(3.5), 0.7, { ghost: true });
+        if (fill) for (let k = 1; k < 4; k++) this._snare(t0 + b * (3 + k * 0.25) + D * 1.5, 0.40 + k * 0.14, { ghost: k < 3 });
+      }
       for (let k = 0; k < m * 2; k++) {
         const last = k === m * 2 - 1;
         this._hat(at(k * 0.5), k % 2 ? 0.30 : 0.46, last && this.bar % 4 === 3);
@@ -1174,6 +1365,35 @@ export class Radio {
   }
 
   /**
+   * A run of syllables, starting at `t`. Returns how long it lasted.
+   * Not words: a voice-shaped source through a formant that moves
+   * every syllable, with the rhythm of somebody reading.
+   */
+  _syllables(t, n, level = 1) {
+    if (!this.in) return 0;
+    let at = 0;
+    const base = 96 + Math.random() * 40;
+    for (let i = 0; i < n; i++) {
+      const dur = 0.07 + Math.random() * 0.13;
+      const f = base * (0.82 + Math.random() * 0.42);
+      const o = this.ctx.createOscillator();
+      o.type = 'sawtooth'; o.frequency.value = f;
+      const fmt = this.ctx.createBiquadFilter();
+      fmt.type = 'bandpass';
+      fmt.frequency.value = 480 + Math.random() * 900;
+      fmt.Q.value = 3.5;
+      const g = this.ctx.createGain();
+      g.gain.setValueAtTime(0.0001, t + at);
+      g.gain.exponentialRampToValueAtTime((0.10 + Math.random() * 0.06) * level, t + at + 0.025);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
+      o.connect(fmt).connect(g).connect(this.in);
+      o.start(t + at); o.stop(t + at + dur + 0.03);
+      at += dur + 0.015 + Math.random() * 0.05;
+    }
+    return at;
+  }
+
+  /**
    * Talk: syllable-shaped bursts on an irregular clock, with the
    * pauses a broadcaster leaves. Not intelligible and not meant
    * to be. Rescheduled at random so it never gets a period.
@@ -1182,27 +1402,7 @@ export class Radio {
     if (this._talkTimer) clearTimeout(this._talkTimer);
     const run = () => {
       if (!this._alive || this.station.band !== 'talk' || !this.in) return;
-      const t = this.e.t;
-      const syllables = 3 + Math.floor(Math.random() * 9);
-      let at = 0;
-      const base = 96 + Math.random() * 40;
-      for (let i = 0; i < syllables; i++) {
-        const dur = 0.07 + Math.random() * 0.13;
-        const f = base * (0.82 + Math.random() * 0.42);
-        const o = this.ctx.createOscillator();
-        o.type = 'sawtooth'; o.frequency.value = f;
-        const fmt = this.ctx.createBiquadFilter();
-        fmt.type = 'bandpass';
-        fmt.frequency.value = 480 + Math.random() * 900;
-        fmt.Q.value = 3.5;
-        const g = this.ctx.createGain();
-        g.gain.setValueAtTime(0.0001, t + at);
-        g.gain.exponentialRampToValueAtTime(0.10 + Math.random() * 0.06, t + at + 0.025);
-        g.gain.exponentialRampToValueAtTime(0.0001, t + at + dur);
-        o.connect(fmt).connect(g).connect(this.in);
-        o.start(t + at); o.stop(t + at + dur + 0.03);
-        at += dur + 0.015 + Math.random() * 0.05;
-      }
+      const at = this._syllables(this.e.t, 3 + Math.floor(Math.random() * 9));
       this._talkTimer = setTimeout(run, at * 1000 + 260 + Math.random() * 1500);
     };
     this._talkTimer = setTimeout(run, 200);

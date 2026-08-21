@@ -1,0 +1,89 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>the title plate, held</title>
+<!--
+  The real title screen: menuscene.js under the real renderer with the
+  real main menu laid over it, so the plate and the type can be judged
+  as one picture instead of two.
+
+    ?frames=N        settle for N frames before freezing (default 40)
+    ?ui=0            plate only
+    ?cx=&cy=&cz=&yaw=&pitch=&fov=   override MENU_SHOT to hunt a frame
+    ?grain=&exposure=&vignette=
+
+  Once it has settled the canvas is swapped for the still it drew, so a
+  plain headless `--screenshot` catches the 3D and the DOM together
+  (the drawing buffer is not preserved, so screenshotting the live
+  canvas gives you a black rectangle). window.__ready goes true then.
+-->
+<link rel="stylesheet" href="/styles/game.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Archivo:wght@600;700&display=swap" rel="stylesheet">
+<style>html,body{margin:0;background:#000;overflow:hidden;height:100%}#viewport,#plate{display:block;position:fixed;inset:0;width:100%;height:100%}</style>
+<canvas id="viewport"></canvas>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Renderer } from '/src/core/render.js';
+import { World } from '/src/world/world.js';
+import { UI } from '/src/core/ui.js';
+import { buildRidgeRoadMenuScene, MENU_SHOT } from '/src/chapters/menuscene.js';
+import { initMenu, mainMenu } from '/src/core/menu.js';
+
+const P = new URLSearchParams(location.search);
+const num = (k, d) => P.has(k) ? parseFloat(P.get(k)) : d;
+
+// the UI needs its elements; give it a minimal DOM
+for (const id of ['hud','crosshair','prompt','subs','subline','choices','card','fade','vhs','letterbox','reader','toast','carrybar','stamina','menu','phone']) {
+  const d = document.createElement('div'); d.id = id; d.className = 'hidden';
+  if (id === 'subline') d.innerHTML = '<b class="who"></b><span class="what"></span>';
+  if (id === 'choices') d.innerHTML = '<div class="wrap"></div>';
+  if (id === 'card') d.innerHTML = '<div class="num"></div><div class="name"></div><div class="meta"></div>';
+  if (id === 'reader') d.innerHTML = '<div class="sheet"></div><button class="close"></button>';
+  if (id === 'crosshair') d.innerHTML = '<span class="dot"></span><span class="ring"></span>';
+  if (id === 'stamina') d.innerHTML = '<span></span>';
+  document.body.appendChild(d);
+}
+UI.init();
+
+for (const k of ['x','y','z','yaw','pitch','fov']) {
+  const q = { x: 'cx', y: 'cy', z: 'cz', yaw: 'yaw', pitch: 'pitch', fov: 'fov' }[k];
+  if (P.has(q)) MENU_SHOT[k] = parseFloat(P.get(q));
+}
+
+const renderer = new Renderer(document.getElementById('viewport'));
+const world = new World(renderer.scene);
+renderer.setGrade('winter');
+buildRidgeRoadMenuScene(world, renderer);
+const u = renderer.final.uniforms;
+if (P.has('grain')) u.grain.value = num('grain', 0.115);
+if (P.has('exposure')) u.exposure.value = num('exposure', 1.06);
+if (P.has('vignette')) u.vignette.value = num('vignette', 0.44);
+
+if (P.get('ui') !== '0') {
+  initMenu({ CHAPTERS: [], startChapter() {}, onSettingsChanged() {} });
+  mainMenu();
+}
+
+const N = Math.round(num('frames', 40));
+let n = 0;
+function loop() {
+  const dt = 1 / 60;
+  world.update(dt, { camera: renderer.camera });
+  world.updateLights(renderer.camera);
+  renderer.update?.(dt);
+  renderer.render(dt);
+  n++;
+  if (n === N) {
+    // freeze: hand the drawn frame to an img so a page screenshot has it
+    const cv = document.getElementById('viewport');
+    const img = new Image();
+    img.id = 'plate';
+    img.onload = () => { cv.replaceWith(img); window.__ready = true; };
+    img.src = cv.toDataURL('image/png');
+    return;
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>

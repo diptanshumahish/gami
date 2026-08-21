@@ -24,7 +24,7 @@ import { buildChurch, CHURCH } from '../world/loc_church.js';
 import { buildStreetlights, LIGHT_COUNT } from '../world/streetlights.js';
 import { makeVictor, makeReccaDrowned, makeButtons, smallProp } from '../world/props.js';
 import { MAT, flat, tiled } from '../world/mat.js';
-import { BOX, CYL, SPH, PLN, SCALE } from '../world/world.js';
+import { SHAPE, BOX, CYL, SPH, PLN, SCALE } from '../world/world.js';
 import { UI, wait } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { scares } from '../core/scares.js';
@@ -529,7 +529,7 @@ function choreLamps(ctx, church, S) {
   const body = new THREE.Mesh(CYL(0.13, 0.13, 0.3, 12), tiled(MAT.rust, 0.5, 0.3));
   const spout = new THREE.Mesh(CYL(0.02, 0.03, 0.22, 8), tiled(MAT.rust, 0.2, 0.22));
   spout.position.set(0.11, 0.2, 0); spout.rotation.z = -0.5;
-  const handle = new THREE.Mesh(new THREE.TorusGeometry(0.07, 0.012, 6, 12), flat(0x3a3630, { rough: .6, metal: .5 }));
+  const handle = new THREE.Mesh(SHAPE.Torus(0.07, 0.012, 6, 12), flat(0x3a3630, { rough: .6, metal: .5 }));
   handle.position.y = 0.18; handle.rotation.x = Math.PI / 2;
   can.add(body, spout, handle);
   can.position.set(boiler.x + 1.7, boiler.y + 0.16, boiler.z - 1.5);
@@ -826,7 +826,7 @@ function choreFont(ctx, church, S) {
 
   const bucket = new THREE.Group();
   const bbody = new THREE.Mesh(CYL(0.16, 0.13, 0.3, 14), tiled(MAT.metal, 0.6, 0.3));
-  const bhandle = new THREE.Mesh(new THREE.TorusGeometry(0.16, 0.008, 5, 14, Math.PI), flat(0x8a8f92, { rough: .4, metal: .7 }));
+  const bhandle = new THREE.Mesh(SHAPE.Torus(0.16, 0.008, 5, 14, Math.PI), flat(0x8a8f92, { rough: .4, metal: .7 }));
   bhandle.position.y = 0.16;
   const bwater = new THREE.Mesh(CYL(0.145, 0.145, 0.02, 14), new THREE.MeshPhysicalMaterial({
     color: 0x2a3a44, roughness: .04, transmission: .8, transparent: true, opacity: .75

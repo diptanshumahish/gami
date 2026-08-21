@@ -11,7 +11,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { flat, MAT, tiled } from './mat.js';
-import { CYL, SPH, BOX } from './world.js';
+import { SHAPE, CYL, SPH, BOX } from './world.js';
 
 export const LIGHT_COUNT = 31;
 
@@ -77,7 +77,7 @@ export function buildStreetlights(world, {
     arm.position.set(x - side * 0.75, y + 7.1, z);
     g.add(arm);
 
-    const hood = new THREE.Mesh(new THREE.ConeGeometry(0.30, 0.22, 8), flat(0x33353a, { rough: .7, metal: .4 }));
+    const hood = new THREE.Mesh(SHAPE.Cone(0.30, 0.22, 8), flat(0x33353a, { rough: .7, metal: .4 }));
     hood.position.set(x - side * 1.45, y + 7.05, z);
     g.add(hood);
 
@@ -104,7 +104,7 @@ export function buildStreetlights(world, {
       g.add(pl);
     }
     // pool of light on the road, with a falloff instead of a rim
-    const pool = new THREE.Mesh(new THREE.PlaneGeometry(8.4, 8.4), new THREE.MeshBasicMaterial({
+    const pool = new THREE.Mesh(SHAPE.Plane(8.4, 8.4), new THREE.MeshBasicMaterial({
       map: glowTexture(), color: 0xE8A653, transparent: true, opacity: 0.22,
       depthWrite: false, blending: THREE.AdditiveBlending, fog: false
     }));
@@ -115,20 +115,20 @@ export function buildStreetlights(world, {
     poles.push({ lamp, halo, pool, pl, on: true, i, y, z, x });
 
     if (road) {
-      const seg = new THREE.Mesh(new THREE.PlaneGeometry(8.4, spacing + 0.1), tiled(MAT.asphalt, 8.4, spacing));
+      const seg = new THREE.Mesh(SHAPE.Plane(8.4, spacing + 0.1), tiled(MAT.asphalt, 8.4, spacing));
       seg.rotation.x = -Math.PI / 2;
       seg.position.set(0, y + 0.01, z);
       seg.receiveShadow = true;
       g.add(seg);
       if (i % 2 === 0) {
-        const line = new THREE.Mesh(new THREE.PlaneGeometry(0.14, spacing * 0.45), flat(0xc8bf9a, { rough: .9 }));
+        const line = new THREE.Mesh(SHAPE.Plane(0.14, spacing * 0.45), flat(0xc8bf9a, { rough: .9 }));
         line.rotation.x = -Math.PI / 2;
         line.position.set(0, y + 0.02, z);
         g.add(line);
       }
       // shoulder + snowbank
       [-1, 1].forEach(s => {
-        const bank = new THREE.Mesh(new THREE.BoxGeometry(2.4, 0.4, spacing + 0.1), tiled(MAT.snow, 2.4, spacing));
+        const bank = new THREE.Mesh(SHAPE.Box(2.4, 0.4, spacing + 0.1), tiled(MAT.snow, 2.4, spacing));
         bank.position.set(s * 5.4, y + 0.16, z);
         bank.receiveShadow = true;
         g.add(bank);

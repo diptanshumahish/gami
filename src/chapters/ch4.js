@@ -14,7 +14,7 @@ import { buildVaskoHouse } from '../world/loc_vasko.js';
 import { volvo, signBoard } from '../world/loc_street.js';
 import { makeGeneric, smallProp } from '../world/props.js';
 import { MAT, flat, tiled } from '../world/mat.js';
-import { BOX, CYL, SPH, PLN } from '../world/world.js';
+import { SHAPE, BOX, CYL, SPH, PLN } from '../world/world.js';
 import { UI, wait } from '../core/ui.js';
 import { audio } from '../core/audio.js';
 import { scares } from '../core/scares.js';
@@ -90,26 +90,26 @@ async function driveSequence(ctx, { label, length, onStart, script = [], endAt, 
   const segs = [];
   for (let i = 0; i < N; i++) {
     const g = new THREE.Group();
-    const surface = new THREE.Mesh(new THREE.PlaneGeometry(9, SEG), tiled(MAT.asphalt, 9, SEG));
+    const surface = new THREE.Mesh(SHAPE.Plane(9, SEG), tiled(MAT.asphalt, 9, SEG));
     surface.rotation.x = -Math.PI / 2;
     g.add(surface);
     // slush in the wheel tracks
     [-1.4, 1.4].forEach(tx => {
-      const t = new THREE.Mesh(new THREE.PlaneGeometry(1.1, SEG), tiled(MAT.snow, 1.1, SEG));
+      const t = new THREE.Mesh(SHAPE.Plane(1.1, SEG), tiled(MAT.snow, 1.1, SEG));
       t.rotation.x = -Math.PI / 2; t.position.set(tx, 0.012, 0);
       g.add(t);
     });
     for (let k = 0; k < 3; k++) {
-      const line = new THREE.Mesh(new THREE.PlaneGeometry(0.14, 3), flat(0xc8bf9a, { rough: .9 }));
+      const line = new THREE.Mesh(SHAPE.Plane(0.14, 3), flat(0xc8bf9a, { rough: .9 }));
       line.rotation.x = -Math.PI / 2; line.position.set(0, 0.02, -SEG / 2 + 4 + k * 8);
       g.add(line);
     }
     [-1, 1].forEach(s => {
-      const bank = new THREE.Mesh(new THREE.BoxGeometry(3.0, 0.5, SEG), tiled(MAT.snow, 3, SEG));
+      const bank = new THREE.Mesh(SHAPE.Box(3.0, 0.5, SEG), tiled(MAT.snow, 3, SEG));
       bank.position.set(s * 6.0, 0.2, 0); g.add(bank);
       // trees
       for (let k = 0; k < 4; k++) {
-        const tr = new THREE.Mesh(new THREE.ConeGeometry(0.9 + Math.random(), 5 + Math.random() * 4, 6),
+        const tr = new THREE.Mesh(SHAPE.Cone(0.9 + Math.random(), 5 + Math.random() * 4, 6),
           flat(0x1a2a20, { rough: .98 }));
         tr.position.set(s * (9 + Math.random() * 8), 2.6, -SEG / 2 + Math.random() * SEG);
         g.add(tr);
@@ -120,11 +120,11 @@ async function driveSequence(ctx, { label, length, onStart, script = [], endAt, 
         pole.position.set(s * 5.6, 3.5, 0); g.add(pole);
         const lamp = new THREE.Mesh(SPH(0.2, 8), new THREE.MeshBasicMaterial({ color: 0xE8A653 }));
         lamp.position.set(s * 4.3, 6.9, 0); g.add(lamp);
-        const halo = new THREE.Mesh(new THREE.PlaneGeometry(3, 3), new THREE.MeshBasicMaterial({
+        const halo = new THREE.Mesh(SHAPE.Plane(3, 3), new THREE.MeshBasicMaterial({
           color: 0xE8A653, transparent: true, opacity: .16, blending: THREE.AdditiveBlending, depthWrite: false
         }));
         halo.position.copy(lamp.position); g.add(halo);
-        const pool = new THREE.Mesh(new THREE.CircleGeometry(3.2, 14), new THREE.MeshBasicMaterial({
+        const pool = new THREE.Mesh(SHAPE.Circle(3.2, 14), new THREE.MeshBasicMaterial({
           color: 0xE8A653, transparent: true, opacity: .09, blending: THREE.AdditiveBlending, depthWrite: false
         }));
         pool.rotation.x = -Math.PI / 2; pool.position.set(s * 4.3, 0.04, 0); g.add(pool);
@@ -140,9 +140,9 @@ async function driveSequence(ctx, { label, length, onStart, script = [], endAt, 
   const car = volvo(world, 0, 0, 0, Math.PI);
   world.clearCollidersTagged('car');
   const dash = new THREE.Group();
-  const dashMesh = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.32, 0.5), flat(0x1a1c1e, { rough: .7 }));
+  const dashMesh = new THREE.Mesh(SHAPE.Box(1.7, 0.32, 0.5), flat(0x1a1c1e, { rough: .7 }));
   dashMesh.position.set(0, 0.98, -1.1); dash.add(dashMesh);
-  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.18, 0.022, 8, 20), flat(0x22242a, { rough: .6 }));
+  const wheel = new THREE.Mesh(SHAPE.Torus(0.18, 0.022, 8, 20), flat(0x22242a, { rough: .6 }));
   wheel.position.set(-0.38, 1.06, -0.62); wheel.rotation.x = 1.1; dash.add(wheel);
   const cluster = new THREE.Mesh(PLN(0.34, 0.16), new THREE.MeshBasicMaterial({ color: 0x2a1a10 }));
   cluster.position.set(-0.38, 1.13, -0.9); cluster.rotation.x = -0.35; dash.add(cluster);

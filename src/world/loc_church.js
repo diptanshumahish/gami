@@ -12,7 +12,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { MAT, flat, tiled, T } from './mat.js';
-import { SCALE, BOX, CYL, SPH, PLN } from './world.js';
+import { SHAPE, SCALE, BOX, CYL, SPH, PLN } from './world.js';
 import { makeDoor, makeDoorPair } from './door.js';
 import { pew, oilLamp, counter, shelfUnit, clutter, smallProp, chair, bed } from './props.js';
 import { signBoard } from './loc_street.js';
@@ -81,7 +81,7 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
       axis: 'x', h: H, y, thick: 0.6, mat: stone, ww: 1.5, wh: 3.0, sill: 2.4, glass: false
     });
     // leaded glass, dark, so you can see out
-    const gm = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 3.0), new THREE.MeshPhysicalMaterial({
+    const gm = new THREE.Mesh(SHAPE.Plane(1.5, 3.0), new THREE.MeshPhysicalMaterial({
       color: 0x1b2530, roughness: .18, transmission: .55, transparent: true, opacity: .28, side: THREE.DoubleSide
     }));
     gm.position.set(wx, y + 3.9, z - 4.5);
@@ -91,7 +91,7 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
   for (let i = 0; i < 5; i++) {
     const wx = x + C.naveX - 7.5 + i * 3.6;
     world.wallWithWindow(wx, z + 4.5, 3.6, 0, { axis: 'x', h: H, y, thick: 0.6, mat: stone, ww: 1.5, wh: 3.0, sill: 2.4, glass: false });
-    const gm = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 3.0), new THREE.MeshPhysicalMaterial({
+    const gm = new THREE.Mesh(SHAPE.Plane(1.5, 3.0), new THREE.MeshPhysicalMaterial({
       color: 0x241d18, roughness: .18, transmission: .3, transparent: true, opacity: .4, side: THREE.DoubleSide
     }));
     gm.position.set(wx, y + 3.9, z + 4.5);
@@ -101,7 +101,7 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
   // ============================================================ CEILING
   // barrel vault, cheap: a wide arc of segments
   const vault = new THREE.Mesh(
-    new THREE.CylinderGeometry(5.0, 5.0, 18.0, 18, 1, true, Math.PI, Math.PI),
+    SHAPE.Cylinder(5.0, 5.0, 18.0, 18, 1, true, Math.PI, Math.PI),
     tiled(MAT.plaster, 18, 12)
   );
   vault.rotation.z = Math.PI / 2;
@@ -130,7 +130,7 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
   h.refs.poorBox = poorBox;
 
   const stoup = new THREE.Group();
-  const bowl = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), flat(0x9a958a, { rough: .55 }));
+  const bowl = new THREE.Mesh(SHAPE.Sphere(0.19, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), flat(0x9a958a, { rough: .55 }));
   bowl.rotation.x = Math.PI; bowl.position.y = 1.02;
   const stem = new THREE.Mesh(CYL(0.07, 0.12, 1.0, 10), flat(0x9a958a, { rough: .55 }));
   stem.position.y = 0.5;
@@ -247,7 +247,7 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
   world.wall(bx + 2.75, bz, 5.0, { axis: 'z', h: 2.6, y: boilY, thick: 0.4, mat: MAT.concrete });
   world.ceiling(bx, bz, 5.5, 5.0, { y: boilY + 2.6, mat: MAT.concrete });
 
-  const water = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 5.0), new THREE.MeshPhysicalMaterial({
+  const water = new THREE.Mesh(SHAPE.Plane(5.5, 5.0), new THREE.MeshPhysicalMaterial({
     color: 0x1a2226, roughness: .08, metalness: .1, transmission: .3, transparent: true, opacity: .72
   }));
   water.rotation.x = -Math.PI / 2;
@@ -319,10 +319,10 @@ export function buildChurch(world, { x = 0, y = 0, z = 0, lit = false } = {}) {
 
   // exterior shell of the church, so it reads from outside
   const shellH = 11.0;
-  const shell = new THREE.Mesh(new THREE.BoxGeometry(34.5, 0.5, 16.5), flat(0x3a3630, { rough: .95 }));
+  const shell = new THREE.Mesh(SHAPE.Box(34.5, 0.5, 16.5), flat(0x3a3630, { rough: .95 }));
   shell.position.set(x - 1, y + shellH, z);
   world.add(shell);
-  const spire = new THREE.Mesh(new THREE.ConeGeometry(2.6, 5.0, 4), flat(0x2e2b28, { rough: .95 }));
+  const spire = new THREE.Mesh(SHAPE.Cone(2.6, 5.0, 4), flat(0x2e2b28, { rough: .95 }));
   spire.rotation.y = Math.PI / 4;
   spire.position.set(x + C.towerX, y + 18.5, z + C.towerZ);
   world.add(spire);
@@ -375,22 +375,22 @@ function singleDoor(world, x, y, z, w, hh, rot, tag) {
 function confessional(world, x, y, z) {
   const g = new THREE.Group(); g.position.set(x, y, z);
   const m = tiled(MAT.pew, 2.4, 2.4);
-  const back = new THREE.Mesh(new THREE.BoxGeometry(2.6, 2.5, 0.1), m); back.position.set(0, 1.25, -0.5); g.add(back);
+  const back = new THREE.Mesh(SHAPE.Box(2.6, 2.5, 0.1), m); back.position.set(0, 1.25, -0.5); g.add(back);
   [-1, 1].forEach(s => {
-    const side = new THREE.Mesh(new THREE.BoxGeometry(0.1, 2.5, 1.1), m);
+    const side = new THREE.Mesh(SHAPE.Box(0.1, 2.5, 1.1), m);
     side.position.set(s * 1.3, 1.25, 0.05); g.add(side);
   });
-  const mid = new THREE.Mesh(new THREE.BoxGeometry(0.12, 2.5, 1.1), m); mid.position.set(0, 1.25, 0.05); g.add(mid);
-  const top = new THREE.Mesh(new THREE.BoxGeometry(2.7, 0.16, 1.3), m); top.position.set(0, 2.55, 0.05); g.add(top);
+  const mid = new THREE.Mesh(SHAPE.Box(0.12, 2.5, 1.1), m); mid.position.set(0, 1.25, 0.05); g.add(mid);
+  const top = new THREE.Mesh(SHAPE.Box(2.7, 0.16, 1.3), m); top.position.set(0, 2.55, 0.05); g.add(top);
   const doors = [-1, 1].map(s => {
     const pivot = new THREE.Group();
     pivot.position.set(s * 1.24, 0, 0.58);
-    const d = new THREE.Mesh(new THREE.BoxGeometry(1.1, 2.2, 0.06), m);
+    const d = new THREE.Mesh(SHAPE.Box(1.1, 2.2, 0.06), m);
     d.position.set(-s * 0.55, 1.1, 0);
     pivot.add(d); g.add(pivot);
     return pivot;
   });
-  const curtain = new THREE.Mesh(new THREE.BoxGeometry(0.9, 2.1, 0.04), flat(0x4a1f24, { rough: .96 }));
+  const curtain = new THREE.Mesh(SHAPE.Box(0.9, 2.1, 0.04), flat(0x4a1f24, { rough: .96 }));
   curtain.position.set(0, 1.1, 0.56); g.add(curtain);
   g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
   world.add(g);
@@ -421,9 +421,9 @@ function font(world, x, y, z) {
 
 function breakerPanel(world, x, y, z, rot) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.6, 0.12), flat(0x5a5f63, { rough: .5, metal: .5 }));
+  const box = new THREE.Mesh(SHAPE.Box(0.4, 0.6, 0.12), flat(0x5a5f63, { rough: .5, metal: .5 }));
   g.add(box);
-  const lever = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.14, 0.05), flat(0xb02f26, { rough: .4 }));
+  const lever = new THREE.Mesh(SHAPE.Box(0.06, 0.14, 0.05), flat(0xb02f26, { rough: .4 }));
   lever.position.set(0, -0.1, 0.08); g.add(lever);
   const label = new THREE.Mesh(PLN(0.3, 0.09), labelTex('MAIN. 200A'));
   label.position.set(0, 0.2, 0.065); g.add(label);
@@ -442,9 +442,9 @@ function labelTex(text) {
 
 function crackedMirror(world, x, y, z, rot) {
   const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.y = rot;
-  const frame = new THREE.Mesh(new THREE.BoxGeometry(0.36, 0.46, 0.03), flat(0x4a3524, { rough: .7 }));
+  const frame = new THREE.Mesh(SHAPE.Box(0.36, 0.46, 0.03), flat(0x4a3524, { rough: .7 }));
   g.add(frame);
-  const glass = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), new THREE.MeshStandardMaterial({
+  const glass = new THREE.Mesh(SHAPE.Plane(0.3, 0.4), new THREE.MeshStandardMaterial({
     color: 0x8d9aa4, roughness: .09, metalness: .9
   }));
   glass.position.z = 0.018; g.add(glass);
@@ -462,7 +462,7 @@ function crackedMirror(world, x, y, z, rot) {
     cg.lineTo(40 + i * 4 + (Math.random() - .5) * 60, 20 + i * 26 + (Math.random() - .5) * 40);
     cg.stroke();
   }
-  const crack = new THREE.Mesh(new THREE.PlaneGeometry(0.3, 0.4), new THREE.MeshBasicMaterial({
+  const crack = new THREE.Mesh(SHAPE.Plane(0.3, 0.4), new THREE.MeshBasicMaterial({
     map: new THREE.CanvasTexture(c), transparent: true
   }));
   crack.position.z = 0.021; g.add(crack);
@@ -483,7 +483,7 @@ function clockFace(world, x, y, z, rot) {
   // stuck at 3:00 since 1963
   g.lineWidth = 10; g.beginPath(); g.moveTo(128, 128); g.lineTo(128 + 62, 128); g.stroke();  // hour → 3
   g.lineWidth = 7; g.beginPath(); g.moveTo(128, 128); g.lineTo(128, 128 - 92); g.stroke();   // minute → 12
-  const m = new THREE.Mesh(new THREE.CircleGeometry(1.3, 24), new THREE.MeshStandardMaterial({
+  const m = new THREE.Mesh(SHAPE.Circle(1.3, 24), new THREE.MeshStandardMaterial({
     map: new THREE.CanvasTexture(c), roughness: .85
   }));
   m.position.set(x, y, z); m.rotation.y = rot;
@@ -580,7 +580,7 @@ function buildTower(world, x, y, z) {
   const bellG = new THREE.Group();
   const yoke = new THREE.Mesh(BOX(1.5, 0.2, 0.24), flat(0x3a2e22, { rough: .9 }));
   yoke.position.y = 1.35; bellG.add(yoke);
-  const wheel = new THREE.Mesh(new THREE.TorusGeometry(0.72, 0.05, 8, 22), flat(0x3a2e22, { rough: .9 }));
+  const wheel = new THREE.Mesh(SHAPE.Torus(0.72, 0.05, 8, 22), flat(0x3a2e22, { rough: .9 }));
   wheel.position.set(0.5, 1.35, 0); wheel.rotation.y = Math.PI / 2; bellG.add(wheel);
   const bellShape = new THREE.LatheGeometry([
     new THREE.Vector2(0.02, 1.30), new THREE.Vector2(0.14, 1.24), new THREE.Vector2(0.20, 1.05),

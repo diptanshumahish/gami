@@ -9,7 +9,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { MAT, flat, tiled, T } from './mat.js';
-import { SCALE, BOX, CYL, SPH, PLN } from './world.js';
+import { SHAPE, SCALE, BOX, CYL, SPH, PLN } from './world.js';
 import { makeDoor } from './door.js';
 import { RIDGE } from './loc_street.js';
 import {
@@ -97,7 +97,7 @@ function tableLamp(world, x, y, z, { shadeCol = 0xE8D9B8, baseCol = 0x3a3733, r 
   stem.position.y = (hh - 0.16) / 2 + 0.03; g.add(stem);
   const shadeMat = new THREE.MeshBasicMaterial({ color: on ? shadeCol : SHADE_OFF, side: THREE.DoubleSide });
   shadeMat.userData.lit = shadeCol;
-  const shade = new THREE.Mesh(new THREE.CylinderGeometry(r * 0.72, r, 0.17, 16, 1, true), shadeMat);
+  const shade = new THREE.Mesh(SHAPE.Cylinder(r * 0.72, r, 0.17, 16, 1, true), shadeMat);
   shade.position.y = hh - 0.06; g.add(shade);
   const bulb = new THREE.Mesh(SPH(0.018, 8), new THREE.MeshBasicMaterial({ color: 0xF6DCB4 }));
   bulb.position.y = hh - 0.08; g.add(bulb);
@@ -136,7 +136,7 @@ function pendant(world, x, y, z, ceilY, { on = true, power = 9.5, dist = 8.5 } =
   cord.position.set(x, y + cordLen / 2 + 0.02, z); world.add(cord);
   const shadeMat = new THREE.MeshBasicMaterial({ color: on ? 0xFAE1B4 : SHADE_OFF, side: THREE.DoubleSide });
   shadeMat.userData.lit = 0xFAE1B4;
-  const shade = new THREE.Mesh(new THREE.ConeGeometry(0.26, 0.2, 18, 1, true), shadeMat);
+  const shade = new THREE.Mesh(SHAPE.Cone(0.26, 0.2, 18, 1, true), shadeMat);
   shade.position.set(x, y + 0.07, z);
   world.add(shade);
   const bulb = new THREE.Mesh(SPH(0.022, 10), new THREE.MeshBasicMaterial({ color: 0xF6DCB4 }));
@@ -671,7 +671,7 @@ export function buildApartment(world, {
   const strip = new THREE.Mesh(BOX(1.2, 0.03, 0.07), flat(0xE8D8B8, { rough: .6 }));
   strip.position.set(x - 1.5, y + 1.11, Z0 + 0.3);
   world.add(strip);
-  const dome = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), flat(0xEFE6D2, { rough: .8, side: THREE.DoubleSide }));
+  const dome = new THREE.Mesh(SHAPE.Sphere(0.12, 12, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), flat(0xEFE6D2, { rough: .8, side: THREE.DoubleSide }));
   dome.position.set(x - 1.1, y + 1.93, z - 0.8);
   world.add(dome);
   const kitchenLight = new THREE.SpotLight(0xFFDDB4, lightsOn ? 15 : 0, 3.6, 1.22, 0.85, 1.35);
@@ -692,7 +692,7 @@ export function buildApartment(world, {
   flStem.position.y = 0.66; floorLampG.add(flStem);
   const flShadeMat = new THREE.MeshBasicMaterial({ color: lightsOn ? 0xF6DCAE : SHADE_OFF, side: THREE.DoubleSide });
   flShadeMat.userData.lit = 0xF6DCAE;
-  const flShade = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.21, 0.24, 16, 1, true), flShadeMat);
+  const flShade = new THREE.Mesh(SHAPE.Cylinder(0.15, 0.21, 0.24, 16, 1, true), flShadeMat);
   flShade.position.y = 1.4; floorLampG.add(flShade);
   const flBulb = new THREE.Mesh(SPH(0.02, 8), new THREE.MeshBasicMaterial({ color: 0xF6DCB4 }));
   flBulb.position.y = 1.38; floorLampG.add(flBulb);
@@ -1024,7 +1024,7 @@ export function buildLaundromat(world, { x = 0, y = 0, z = 0 } = {}) {
     if (bw < 0.06) return;
     const kick = new THREE.Mesh(BOX(bw, SILL, 0.1), flat(0x3d4a44, { rough: .6 }));
     kick.position.set(cx, y + SILL / 2, FZ); world.add(kick);
-    const pane = new THREE.Mesh(new THREE.PlaneGeometry(bw - 0.08, HEAD - SILL - 0.08), glassMat);
+    const pane = new THREE.Mesh(SHAPE.Plane(bw - 0.08, HEAD - SILL - 0.08), glassMat);
     pane.position.set(cx, y + (SILL + HEAD) / 2, FZ); world.add(pane);
     const trans = new THREE.Mesh(BOX(bw, H - HEAD, 0.1), flat(0x3d4a44, { rough: .6 }));
     trans.position.set(cx, y + HEAD + (H - HEAD) / 2, FZ); world.add(trans);

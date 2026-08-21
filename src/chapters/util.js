@@ -34,6 +34,56 @@ export async function beat(ctx, fn, { lock = true, letterbox = false } = {}) {
   }
 }
 
+/**
+ * A conversation the way this game wants them now: the player is held
+ * where they stand, the camera is drawn to whoever is talking, the bars
+ * come down, and the lines are short. You cannot walk off in the middle
+ * of somebody's sentence, and you cannot skip it. That is the whole
+ * contract: when a person in Ashgrove talks to you, you listen.
+ *
+ *   await talk(ctx, [SAY('RECCA', '...'), J('...')], { focus: recca });
+ *
+ * `focus` is a Character, an Object3D or a Vector3. The pull on the
+ * camera is soft (player.js lerps at 3.2/s), so the player can glance
+ * away and is drawn back, which is how it should feel. Any entry in
+ * `lines` may be an async function, so a choice can sit in the middle.
+ */
+export async function talk(ctx, lines, { focus = null, letterbox = true, lock = true, gap = 200, keepLook = false } = {}) {
+  const p = ctx.player;
+  const it = ctx.game?.interactor || null;
+  const prev = { move: p.canMove, busy: it ? it.busy : false };
+  if (lock) p.canMove = false;
+  if (it) it.busy = true;
+  if (letterbox) UI.letterbox(true);
+  UI.setPrompt(null); UI.setCrosshair(false);
+
+  // the head moves while she talks, so the target has to follow it
+  let tick = null;
+  const tgt = new THREE.Vector3();
+  const obj = focus?.p?.headG || (focus?.isObject3D ? focus : null);
+  if (obj) {
+    obj.getWorldPosition(tgt);
+    tick = ctx.world.tick(() => { obj.getWorldPosition(tgt); });
+    p.forceLookAt = tgt;
+  } else if (focus?.isVector3) {
+    tgt.copy(focus); p.forceLookAt = tgt;
+  }
+  try {
+    for (const l of lines) {
+      if (typeof l === 'function') { await l(); continue; }
+      const [who, text, opts] = l;
+      await UI.say(who, text, opts || {});
+      await wait(gap);
+    }
+  } finally {
+    if (tick) ctx.world.untick(tick);
+    if (!keepLook) p.forceLookAt = null;
+    if (lock) p.canMove = prev.move;
+    if (it) it.busy = prev.busy;
+    if (letterbox) UI.letterbox(false);
+  }
+}
+
 /** Objective in Jared's own bad shorthand. */
 export function objective(text, id = text) {
   addNote(text, id);

@@ -339,6 +339,88 @@ export const T = {
     grain(c, w, h, R, 16);
   }, { metres: 4.0 }),
 
+  // Roadside grass, late August: more straw than green, mown once in
+  // June. Reads at four metres a tile and dissolves into the fog beyond.
+  grass: () => tex('grass', 256, 256, (c, w, h, R) => {
+    c.fillStyle = '#6a6b3c'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 9000; i++) {
+      const g = 86 + R() * 60, r = g - 14 + R() * 22, b = 40 + R() * 26;
+      c.fillStyle = `rgba(${r},${g},${b},.55)`;
+      c.fillRect(R() * w, R() * h, 1.2, 2.5 + R() * 4);
+    }
+    for (let i = 0; i < 1400; i++) {
+      const v = 150 + R() * 60;
+      c.fillStyle = `rgba(${v},${v - 20},${v - 80},.35)`;
+      c.fillRect(R() * w, R() * h, 1, 3 + R() * 6);
+    }
+    blotch(c, w, h, R, 12, 'rgb(60,66,34)', 24, 90, 0.18);
+    blotch(c, w, h, R, 8, 'rgb(124,118,70)', 20, 70, 0.12);
+    grain(c, w, h, R, 22);
+  }, { metres: 4.0 }),
+
+  // Dashboard vinyl. Black, matte, and the sun has been at it for nine years.
+  vinyl: () => tex('vinyl', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#1d1e21'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 4000; i++) {
+      const v = 22 + R() * 26;
+      c.fillStyle = `rgba(${v},${v},${v + 2},.6)`;
+      c.fillRect(R() * w, R() * h, 1.5, 1.5);
+    }
+    blotch(c, w, h, R, 5, 'rgb(54,52,50)', 14, 40, 0.10);
+    grain(c, w, h, R, 10);
+  }, { metres: 0.6 }),
+
+  // Trees, as cards. A pine is a dark jagged triangle; a broadleaf is a
+  // trunk with a lumpy crown. Painted with alpha and hung on two crossed
+  // planes, which is what a tree was on every machine this game is
+  // pretending to be, and what it still is at a hundred metres in fog.
+  pine: () => tex('pine', 128, 256, (c, w, h, R) => {
+    c.clearRect(0, 0, w, h);
+    const trunkY = h - 8;
+    c.fillStyle = '#2a2119'; c.fillRect(w / 2 - 3, h * 0.62, 6, h * 0.38);
+    const tiers = 22;
+    for (let i = 0; i < tiers; i++) {
+      const t = i / tiers;
+      const y = 10 + t * (h * 0.78);
+      const half = 3 + t * (w * 0.44);
+      const g = 52 + R() * 30 - t * 14, r = g * 0.7, b = g * 0.72;
+      c.fillStyle = `rgb(${r | 0},${g | 0},${b | 0})`;
+      c.beginPath();
+      c.moveTo(w / 2, y - 10);
+      for (let k = 0; k <= 8; k++) {
+        const u = k / 8;
+        c.lineTo(w / 2 + (u - 0.5) * 2 * half, y + 10 + (k % 2 ? 6 : 0) + R() * 5);
+      }
+      c.closePath(); c.fill();
+    }
+    // darker underside, a touch of light on the sunward edge
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = 'rgba(10,14,10,.35)'; c.fillRect(0, 0, w * 0.5, h);
+    c.fillStyle = 'rgba(120,130,70,.18)'; c.fillRect(w * 0.6, 0, w * 0.4, h);
+    c.globalCompositeOperation = 'source-over';
+    grain(c, w, h, R, 26);
+  }, { metres: 1, aniso: 4 }),
+  broadleaf: () => tex('broadleaf', 192, 256, (c, w, h, R) => {
+    c.clearRect(0, 0, w, h);
+    c.fillStyle = '#3a2d22'; c.fillRect(w / 2 - 5, h * 0.5, 10, h * 0.5);
+    c.fillStyle = '#2e241b';
+    [[-1, 0.62], [1, 0.58], [-0.6, 0.5], [0.7, 0.46]].forEach(([d, yy]) => {
+      c.beginPath(); c.moveTo(w / 2, h * 0.62); c.lineTo(w / 2 + d * w * 0.28, h * yy); c.lineTo(w / 2 + d * w * 0.30, h * yy + 4); c.lineTo(w / 2 + 2, h * 0.64); c.fill();
+    });
+    for (let i = 0; i < 70; i++) {
+      const a = R() * Math.PI * 2, rad = Math.pow(R(), 0.6) * w * 0.42;
+      const x = w / 2 + Math.cos(a) * rad, y = h * 0.34 + Math.sin(a) * rad * 0.78;
+      const r = 10 + R() * 22;
+      const g = 70 + R() * 50 - (y / h) * 30, rr = g * 0.82, b = g * 0.5;
+      c.fillStyle = `rgb(${rr | 0},${g | 0},${b | 0})`;
+      c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+    }
+    c.globalCompositeOperation = 'source-atop';
+    c.fillStyle = 'rgba(12,16,8,.30)'; c.fillRect(0, h * 0.3, w, h);
+    c.globalCompositeOperation = 'source-over';
+    grain(c, w, h, R, 26);
+  }, { metres: 1, aniso: 4 }),
+
   // Shop awning canvas: two-inch stripes, sun-bleached on the folds and
   // stained along the bottom edge where forty years of rain has run off it.
   awning: () => tex('awning', 256, 256, (c, w, h, R) => {
@@ -461,6 +543,241 @@ export const T = {
     grain(c, w, h, R, 14);
   }, { metres: 1.5 }),
 
+  /* ------------------------------------------------------------------
+     Street furniture and the things standing on the pavement. These are
+     the textures that turn a box on the kerb into a thing somebody
+     bolted there in 1971 and has not looked at since. */
+
+  /** Bark. Vertical fissures, ridges catching light, a little lichen.
+      v runs up the trunk, u wraps round it. */
+  bark: () => tex('bark', 256, 512, (c, w, h, R) => {
+    c.fillStyle = '#4a4036'; c.fillRect(0, 0, w, h);
+    // ridges: long wandering vertical strokes, lighter
+    for (let i = 0; i < 70; i++) {
+      const x0 = R() * w, wdt = 3 + R() * 9;
+      const v = 78 + R() * 40;
+      c.strokeStyle = `rgba(${v},${v - 10},${v - 20},.75)`; c.lineWidth = wdt;
+      c.beginPath(); c.moveTo(x0, -10);
+      let x = x0;
+      for (let y = 0; y <= h + 20; y += 40) { x += (R() - 0.5) * 12; c.lineTo(x, y); }
+      c.stroke();
+    }
+    // fissures: narrow and dark, between the ridges
+    for (let i = 0; i < 90; i++) {
+      const x0 = R() * w;
+      c.strokeStyle = `rgba(18,14,10,${0.5 + R() * 0.4})`; c.lineWidth = 1 + R() * 2.5;
+      c.beginPath(); c.moveTo(x0, R() * h * 0.4 - 20);
+      let x = x0;
+      const len = h * (0.3 + R() * 0.8);
+      for (let y = 0; y <= len; y += 30) { x += (R() - 0.5) * 9; c.lineTo(x, y); }
+      c.stroke();
+    }
+    blotch(c, w, h, R, 14, 'rgb(120,130,90)', 8, 28, 0.14);   // lichen
+    blotch(c, w, h, R, 20, 'rgb(20,16,12)', 20, 70, 0.18);
+    grain(c, w, h, R, 18);
+  }, { metres: 1.0, aniso: 4 }),
+
+  /** A clump of leaves on a transparent card. Three or four of these
+      crossed at a limb end is a canopy; the alpha edge is what stops it
+      being a ball. `season` is summer, autumn or dead. */
+  foliage: (season = 'summer') => tex('foliage_' + season, 256, 256, (c, w, h, R) => {
+    c.clearRect(0, 0, w, h);
+    const PAL = {
+      summer: [[58, 74, 40], [70, 88, 46], [46, 60, 34], [84, 98, 52], [38, 50, 30]],
+      autumn: [[120, 84, 36], [96, 62, 30], [140, 104, 40], [76, 58, 34], [110, 70, 28]],
+      dead:   [[72, 58, 40], [58, 48, 34], [84, 70, 50], [48, 40, 30]]
+    }[season];
+    const cx = w / 2, cy = h / 2 - 8;
+    // the mass, built from overlapping leaf-sized ellipses in a ragged disc
+    for (let i = 0; i < 260; i++) {
+      const a = R() * Math.PI * 2, rad = Math.pow(R(), 0.55) * w * 0.40;
+      const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.92;
+      const rr = 6 + R() * 12;
+      const col = PAL[Math.floor(R() * PAL.length)];
+      const shade = 1 - (y / h) * 0.35 + (R() - 0.5) * 0.2;   // darker low down
+      c.fillStyle = `rgb(${col[0] * shade | 0},${col[1] * shade | 0},${col[2] * shade | 0})`;
+      c.beginPath(); c.ellipse(x, y, rr, rr * (0.55 + R() * 0.5), R() * 3, 0, 7); c.fill();
+    }
+    // a few leaves hanging off the edge on their own, which is the part
+    // the eye uses to decide this is foliage and not a cushion
+    for (let i = 0; i < 40; i++) {
+      const a = R() * Math.PI * 2, rad = w * (0.38 + R() * 0.1);
+      const x = cx + Math.cos(a) * rad, y = cy + Math.sin(a) * rad * 0.92;
+      const col = PAL[Math.floor(R() * PAL.length)];
+      c.fillStyle = `rgb(${col[0]},${col[1]},${col[2]})`;
+      c.beginPath(); c.ellipse(x, y, 5 + R() * 5, 3 + R() * 3, a, 0, 7); c.fill();
+    }
+    // twigs showing through
+    c.strokeStyle = 'rgba(40,30,22,.7)'; c.lineWidth = 2;
+    for (let i = 0; i < 6; i++) {
+      const a = R() * Math.PI * 2;
+      c.beginPath(); c.moveTo(cx, cy);
+      c.lineTo(cx + Math.cos(a) * w * 0.3, cy + Math.sin(a) * w * 0.28); c.stroke();
+    }
+    grain(c, w, h, R, 16);
+  }, { metres: 1, aniso: 4 }),
+
+  /** Bare winter twigs on a card, for the same trees in December. */
+  twigs: () => tex('twigs', 256, 256, (c, w, h, R) => {
+    c.clearRect(0, 0, w, h);
+    const branch = (x, y, a, len, wd, depth) => {
+      if (depth > 5 || len < 6) return;
+      const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+      c.strokeStyle = `rgba(${40 + R() * 20},${32 + R() * 14},${24 + R() * 10},${0.75 + R() * 0.25})`;
+      c.lineWidth = wd;
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x2, y2); c.stroke();
+      const n = 2 + (R() > 0.6 ? 1 : 0);
+      for (let i = 0; i < n; i++) {
+        branch(x2, y2, a + (R() - 0.5) * 1.4, len * (0.55 + R() * 0.3), wd * 0.68, depth + 1);
+      }
+    };
+    for (let i = 0; i < 5; i++) {
+      branch(w / 2 + (R() - 0.5) * 30, h - 4, -Math.PI / 2 + (R() - 0.5) * 1.6, 40 + R() * 30, 4, 0);
+    }
+    grain(c, w, h, R, 10);
+  }, { metres: 1, aniso: 4 }),
+
+  /** The side of a car. Near-white so the paint colour tints it, with
+      the road's dirt along the sill, a dust film, and a few chips. */
+  carside: () => tex('carside', 256, 128, (c, w, h, R) => {
+    c.fillStyle = '#d9d9d9'; c.fillRect(0, 0, w, h);
+    // a film of dust, heavier low down
+    const g = c.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, 'rgba(150,140,120,0)'); g.addColorStop(0.62, 'rgba(150,140,120,.08)');
+    g.addColorStop(0.86, 'rgba(95,85,70,.42)'); g.addColorStop(1, 'rgba(70,62,52,.62)');
+    c.fillStyle = g; c.fillRect(0, 0, w, h);
+    // splash streaks running up from the sill
+    for (let i = 0; i < 60; i++) {
+      const x = R() * w, len = 6 + R() * 30;
+      c.fillStyle = `rgba(80,70,58,${0.08 + R() * 0.16})`;
+      c.fillRect(x, h - len, 1 + R() * 3, len);
+    }
+    // the highlight along the shoulder of the panel
+    c.fillStyle = 'rgba(255,255,255,.16)'; c.fillRect(0, h * 0.06, w, 3);
+    // chips and a rust bloom or two
+    for (let i = 0; i < 14; i++) {
+      c.fillStyle = R() > 0.5 ? 'rgba(40,36,32,.7)' : 'rgba(130,70,30,.6)';
+      c.fillRect(R() * w, h * (0.5 + R() * 0.5), 1 + R() * 3, 1 + R() * 2);
+    }
+    grain(c, w, h, R, 6);
+  }, { metres: 1, aniso: 4 }),
+
+  /** Ribbed galvanised steel, the kind a litter bin is rolled from.
+      Vertical ribs, a green-grey paint job, rust where the paint went. */
+  steelribbed: () => tex('steelribbed', 256, 256, (c, w, h, R) => {
+    c.fillStyle = '#5f6a60'; c.fillRect(0, 0, w, h);
+    const rib = 16;
+    for (let x = 0; x < w; x += rib) {
+      const g = c.createLinearGradient(x, 0, x + rib, 0);
+      g.addColorStop(0, 'rgba(0,0,0,.34)'); g.addColorStop(0.35, 'rgba(255,255,255,.14)');
+      g.addColorStop(0.6, 'rgba(255,255,255,.04)'); g.addColorStop(1, 'rgba(0,0,0,.40)');
+      c.fillStyle = g; c.fillRect(x, 0, rib, h);
+    }
+    // rust running down from the rim and pooling at the bottom
+    for (let i = 0; i < 26; i++) {
+      const x = R() * w, len = 10 + R() * 60;
+      c.fillStyle = `rgba(130,72,30,${0.15 + R() * 0.3})`;
+      c.fillRect(x, 0, 2 + R() * 3, len);
+    }
+    blotch(c, w, h, R, 18, 'rgb(120,66,28)', 8, 30, 0.28);
+    blotch(c, w, h, R, 12, 'rgb(30,32,28)', 10, 40, 0.2);
+    c.fillStyle = 'rgba(110,60,26,.35)'; c.fillRect(0, h - 14, w, 14);
+    grain(c, w, h, R, 14);
+  }, { metres: 1.0, aniso: 4 }),
+
+  /** Painted cast iron and pressed steel: a mailbox, a hydrant, a meter.
+      Light base so `color` tints it, with chips, scuffs and a drip or
+      two of rust out of every seam. */
+  enamel: () => tex('enamel', 256, 256, (c, w, h, R) => {
+    c.fillStyle = '#cfd0cc'; c.fillRect(0, 0, w, h);
+    blotch(c, w, h, R, 24, 'rgb(160,160,156)', 18, 70, 0.18);
+    blotch(c, w, h, R, 10, 'rgb(235,235,230)', 14, 50, 0.12);
+    // scuffs: short horizontal scratches
+    c.globalAlpha = .25;
+    for (let i = 0; i < 120; i++) {
+      c.fillStyle = R() > .5 ? '#fff' : '#777';
+      c.fillRect(R() * w, R() * h, 3 + R() * 18, 1);
+    }
+    c.globalAlpha = 1;
+    // chips down to primer and rust
+    for (let i = 0; i < 40; i++) {
+      const x = R() * w, y = R() * h;
+      c.fillStyle = R() > 0.4 ? 'rgba(120,64,28,.85)' : 'rgba(70,66,60,.8)';
+      c.beginPath(); c.ellipse(x, y, 1 + R() * 3, 1 + R() * 2, R() * 3, 0, 7); c.fill();
+      if (R() > 0.6) { c.fillStyle = 'rgba(120,64,28,.3)'; c.fillRect(x - 1, y, 2, 6 + R() * 24); }
+    }
+    // a dirt film at the bottom edge
+    const g = c.createLinearGradient(0, h * 0.7, 0, h);
+    g.addColorStop(0, 'rgba(60,54,44,0)'); g.addColorStop(1, 'rgba(60,54,44,.45)');
+    c.fillStyle = g; c.fillRect(0, h * 0.7, w, h * 0.3);
+    grain(c, w, h, R, 10);
+  }, { metres: 1.0, aniso: 4 }),
+
+  /** The front page behind the glass of a newspaper box. */
+  newsfront: () => tex('newsfront', 256, 320, (c, w, h, R) => {
+    c.fillStyle = '#e4dcc6'; c.fillRect(0, 0, w, h);
+    c.fillStyle = '#1a1714';
+    c.textAlign = 'center'; c.textBaseline = 'middle';
+    c.font = 'bold 30px "Playfair Display", serif';
+    c.fillText('ASHGROVE HERALD', w / 2, 26);
+    c.fillRect(10, 44, w - 20, 2); c.fillRect(10, 48, w - 20, 1);
+    c.font = '9px "JetBrains Mono", monospace';
+    c.fillText('SUNDAY, AUGUST 24, 2014   ·   75 CENTS', w / 2, 58);
+    c.textAlign = 'left';
+    c.font = 'bold 22px "Playfair Display", serif';
+    c.fillText('COUNCIL DELAYS NO. 9', 12, 84);
+    c.fillText('REMEDIATION VOTE', 12, 108);
+    // a photo
+    c.fillStyle = '#7a7468'; c.fillRect(12, 124, 110, 84);
+    c.fillStyle = '#4a463e'; c.fillRect(20, 150, 94, 50);
+    c.fillStyle = '#a8a296'; c.fillRect(12, 124, 110, 30);
+    // columns of body text
+    c.fillStyle = '#3a3632';
+    for (let col = 0; col < 2; col++) {
+      const x0 = col === 0 ? 130 : 12, y0 = col === 0 ? 124 : 216;
+      for (let y = y0; y < h - 8; y += 5) {
+        if (col === 0 && y > 208 && y < 216) continue;
+        c.fillRect(x0, y, (col === 0 ? 114 : 232) * (0.7 + R() * 0.3), 2);
+      }
+    }
+    // fold crease and sun-yellowing
+    c.fillStyle = 'rgba(90,80,60,.25)'; c.fillRect(0, h / 2 - 1, w, 2);
+    blotch(c, w, h, R, 8, 'rgb(190,170,120)', 30, 90, 0.18);
+    grain(c, w, h, R, 8);
+  }, { metres: 1, aniso: 4 }),
+
+  /** A knitted jumper, striped. Light base so a colour tints it. */
+  stripes: () => tex('stripes', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#c8c4bc'; c.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 24) { c.fillStyle = 'rgba(40,44,40,.55)'; c.fillRect(0, y, w, 11); }
+    c.globalAlpha = .18;
+    for (let y = 0; y < h; y += 2) { c.fillStyle = y % 4 ? '#fff' : '#000'; c.fillRect(0, y, w, 1); }
+    c.globalAlpha = 1;
+    grain(c, w, h, R, 12);
+  }, { metres: 0.5, aniso: 4 }),
+
+  /** A plaid shirt or jacket. Light base, tinted. */
+  plaid: () => tex('plaid', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#c9b9a9'; c.fillRect(0, 0, w, h);
+    c.fillStyle = 'rgba(40,30,30,.35)';
+    for (let i = 0; i < w; i += 32) { c.fillRect(i, 0, 12, h); c.fillRect(0, i, w, 12); }
+    c.fillStyle = 'rgba(255,255,255,.18)';
+    for (let i = 16; i < w; i += 32) { c.fillRect(i, 0, 3, h); c.fillRect(0, i, w, 3); }
+    grain(c, w, h, R, 12);
+  }, { metres: 0.6, aniso: 4 }),
+
+  /** Denim and worsted: trousers. */
+  trouser: () => tex('trouser', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#b8bcc4'; c.fillRect(0, 0, w, h);
+    c.globalAlpha = .22;
+    for (let i = 0; i < 2600; i++) { c.fillStyle = R() > .5 ? '#fff' : '#222'; c.fillRect(R() * w, R() * h, 1, 2); }
+    c.globalAlpha = 1;
+    // a seam
+    c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(w / 2 - 1, 0, 2, h);
+    c.fillStyle = 'rgba(0,0,0,.3)'; c.fillRect(w / 2 + 1, 0, 1, h);
+    grain(c, w, h, R, 10);
+  }, { metres: 0.6, aniso: 4 }),
+
   /** Pennsylvania Dutch hex rosette. `inverted` is the one under the paint. */
   hexsign: (inverted = false) => tex('hex' + inverted, 512, 512, (c, w, h, R) => {
     const cx = w / 2, cy = h / 2;
@@ -529,7 +846,122 @@ export const T = {
     blotch(c, w, h, R, 26, 'rgb(60,50,34)', 12, 60, 0.16);
     blotch(c, w, h, R, 10, 'rgb(150,136,104)', 14, 50, 0.10);
     grain(c, w, h, R, 16);
-  }, { metres: 1.0 })
+  }, { metres: 1.0 }),
+
+  // ---- car / sky (drive) ----------------------------------------------
+  /** A cumulus on a transparent card: a shaded flat underside and a lit,
+      lumpy top, heavy grain, drawn three ways by seed so a sky of them is
+      not the same cloud over and over. Tinted by the sky preset. */
+  cloud: (seed = 1) => tex('cloud' + seed, 256, 128, (c, w, h, R) => {
+    c.clearRect(0, 0, w, h);
+    const puffs = 9 + Math.floor(R() * 6);
+    const base = h * 0.62, span = w * (0.30 + R() * 0.14);
+    const disc = (x, y, rx, ry, col) => { c.fillStyle = col; c.beginPath(); c.ellipse(x, y, rx, ry, 0, 0, 7); c.fill(); };
+    // the underside first: a flat dark slab
+    for (let i = 0; i < puffs; i++) {
+      const x = w / 2 + (R() - 0.5) * span * 2, y = base + (R() - 0.5) * 6;
+      disc(x, y, 18 + R() * 26, 8 + R() * 6, 'rgb(150,150,154)');
+    }
+    // then the tops, lighter and higher toward the middle
+    for (let i = 0; i < puffs * 2; i++) {
+      const t = R();
+      const x = w / 2 + (t - 0.5) * span * 2;
+      const lift = (1 - Math.abs(t - 0.5) * 2) * h * 0.34;
+      const y = base - lift * (0.4 + R() * 0.6);
+      const r = 14 + R() * 22;
+      const v = 205 + R() * 40 - (y / h) * 30;
+      disc(x, y, r, r * (0.72 + R() * 0.3), `rgb(${v | 0},${v | 0},${(v - 4) | 0})`);
+    }
+    // a few bright crowns where the sun is on it
+    for (let i = 0; i < 5; i++) {
+      const x = w / 2 + (R() - 0.5) * span * 1.2, y = base - h * (0.18 + R() * 0.18);
+      disc(x, y, 8 + R() * 12, 6 + R() * 8, 'rgb(244,244,246)');
+    }
+    // soften the lot into a cloud and not a pile of coins
+    c.globalCompositeOperation = 'destination-in';
+    c.fillStyle = 'rgba(255,255,255,.82)'; c.fillRect(0, 0, w, h);
+    c.globalCompositeOperation = 'source-over';
+    grain(c, w, h, R, 34);
+  }, { metres: 1, aniso: 2 }),
+
+  /** Pine needles, tileable, for the tiers of a conifer: dark green with
+      short strokes in every direction and the odd dead brown one. */
+  needles: () => tex('needles', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#1f2a1c'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 900; i++) {
+      const x = R() * w, y = R() * h, a = R() * Math.PI * 2, l = 5 + R() * 9;
+      const g = 38 + R() * 46, dead = R() > 0.93;
+      c.strokeStyle = dead ? `rgba(${90 + R() * 40},${60 + R() * 20},30,.7)` : `rgba(${g * 0.62 | 0},${g | 0},${g * 0.55 | 0},.75)`;
+      c.lineWidth = 1 + R();
+      c.beginPath(); c.moveTo(x, y); c.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); c.stroke();
+      // wrap the ones that run off, so it tiles
+      if (x + l > w || y + l > h) { c.beginPath(); c.moveTo(x - w, y - h); c.lineTo(x - w + Math.cos(a) * l, y - h + Math.sin(a) * l); c.stroke(); }
+    }
+    grain(c, w, h, R, 22);
+  }, { metres: 0.7, aniso: 4 }),
+
+  /** A steel wheel cover: dull silver, seven slots, a centre cap, road
+      dirt round the rim. Drawn once and put on both faces of the wheel. */
+  hubcap: () => tex('hubcap', 128, 128, (c, w, h, R) => {
+    const cx = w / 2, cy = h / 2;
+    c.fillStyle = '#141414'; c.fillRect(0, 0, w, h);               // the tyre face behind it
+    c.fillStyle = '#2a2a2c'; c.beginPath(); c.arc(cx, cy, 60, 0, 7); c.fill();
+    c.fillStyle = '#9a9a96'; c.beginPath(); c.arc(cx, cy, 46, 0, 7); c.fill();
+    c.fillStyle = '#b4b4b0'; c.beginPath(); c.arc(cx, cy, 40, 0, 7); c.fill();
+    for (let i = 0; i < 7; i++) {
+      const a = i / 7 * Math.PI * 2;
+      c.save(); c.translate(cx, cy); c.rotate(a);
+      c.fillStyle = '#3a3a3c'; c.beginPath(); c.ellipse(0, -28, 5, 9, 0, 0, 7); c.fill();
+      c.restore();
+    }
+    c.fillStyle = '#c8c8c4'; c.beginPath(); c.arc(cx, cy, 13, 0, 7); c.fill();
+    c.fillStyle = '#2b4e8a'; c.beginPath(); c.ellipse(cx, cy, 8, 5, 0, 0, 7); c.fill();   // the blue oval
+    // dirt in the slots and round the edge
+    for (let i = 0; i < 160; i++) {
+      const a = R() * 7, r = 30 + R() * 30;
+      c.fillStyle = `rgba(60,52,40,${0.05 + R() * 0.2})`;
+      c.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 2, 2);
+    }
+    grain(c, w, h, R, 18);
+  }, { metres: 1, aniso: 4 }),
+
+  /** Kraft cardboard with a strip of brown tape and something written on
+      it in marker. The boxes in the back of the car. */
+  cardboard: () => tex('cardboard', 256, 256, (c, w, h, R) => {
+    c.fillStyle = '#9a7a52'; c.fillRect(0, 0, w, h);
+    for (let y = 0; y < h; y += 3) { c.fillStyle = `rgba(${120 + R() * 30},${95 + R() * 20},60,.18)`; c.fillRect(0, y, w, 1); }
+    blotch(c, w, h, R, 14, 'rgb(70,52,30)', 16, 60, 0.12);
+    c.fillStyle = 'rgba(120,78,40,.85)'; c.fillRect(0, h * 0.44, w, 22);       // tape
+    c.fillStyle = 'rgba(255,255,255,.12)'; c.fillRect(0, h * 0.44 + 2, w, 3);
+    c.fillStyle = '#2a241e'; c.font = 'bold 26px "JetBrains Mono", monospace'; c.textAlign = 'left';
+    c.fillText(['KITCHEN', 'BOOKS', 'BATH', 'MISC', 'J. HALE'][Math.floor(R() * 5)], 18, h * 0.28);
+    c.fillStyle = 'rgba(40,30,20,.5)'; c.fillRect(0, h * 0.72, w, 2);            // the fold
+    grain(c, w, h, R, 14);
+  }, { metres: 0.8, aniso: 4 }),
+
+  /** Grey seat velour, the kind every American car had in 1993. */
+  velour: () => tex('velour', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#5a5c62'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 2600; i++) {
+      const v = 70 + R() * 50;
+      c.fillStyle = `rgba(${v},${v + 2},${v + 8},.5)`;
+      c.fillRect(R() * w, R() * h, 1 + R() * 2, 1);
+    }
+    // the stitched channels
+    for (let x = 0; x < w; x += 32) { c.fillStyle = 'rgba(30,30,36,.55)'; c.fillRect(x, 0, 2, h); }
+    grain(c, w, h, R, 14);
+  }, { metres: 0.5, aniso: 4 }),
+
+  /** Dark plastic dash grain: the same as vinyl but finer and matte. */
+  dashgrain: () => tex('dashgrain', 128, 128, (c, w, h, R) => {
+    c.fillStyle = '#3a3836'; c.fillRect(0, 0, w, h);
+    for (let i = 0; i < 4000; i++) {
+      const v = 44 + R() * 26;
+      c.fillStyle = `rgba(${v},${v - 2},${v - 4},.55)`;
+      c.fillRect(R() * w, R() * h, 1, 1);
+    }
+    grain(c, w, h, R, 10);
+  }, { metres: 0.4, aniso: 4 })
 };
 
 // ============================================================ MATERIALS
@@ -598,14 +1030,19 @@ function smudge(c, x, y, rx, ry, colour, a) {
  * One face. `shut` draws the same face with the eyes closed, which is
  * how blinking works: two textures and a swap.
  */
-export function faceTex(o = {}, shut = false) {
+export function faceTex(o = {}, shut = false, gaze = null) {
   const {
     skin = 0xd8b49a, hair = 0x3a2b20, iris = 0x4a3a28, lipCol = 0xa06254,
     stubble = 0, age = 0, brow = 1, id = '', female = 0,
     eyeGap = 1, eyeW = 1, noseW = 1, mouthW = 1, browY = 0, lash = 0, freck = 0
   } = o;
+  // Where the iris sits in its own socket, in canvas pixels. The head
+  // turns to look at you and the eyes get there first, which is the
+  // whole difference between somebody looking at you and a mask aimed
+  // at you. See GAZE / _gaze in props.js.
+  const gx = gaze ? gaze[0] : 0, gy = gaze ? gaze[1] : 0;
   const key = `face|${skin}|${hair}|${iris}|${lipCol}|${stubble}|${age}|${brow}|${id}|` +
-    `${female}|${eyeGap}|${eyeW}|${noseW}|${mouthW}|${browY}|${lash}|${freck}|${shut ? 1 : 0}`;
+    `${female}|${eyeGap}|${eyeW}|${noseW}|${mouthW}|${browY}|${lash}|${freck}|${shut ? 1 : 0}|${gx}|${gy}`;
   return tex(key, FW, FW, (c, w, h, R) => {
     const CX = w / 2;
     const dk = RGBA(skin, 1, 0.42);        // the shadow colour of this skin
@@ -685,12 +1122,17 @@ export function faceTex(o = {}, shut = false) {
         c.quadraticCurveTo(ex - 1, ey + EH * 0.85, ex - EW, ey + 1);
         c.fill();
         c.save(); c.clip();
+        // The iris rides inside the clip, so an eye turned all the way
+        // to one corner is cut by the lid the way a real one is.
+        const ix = ex + sd * 1 + gx, iy = ey - 1 + gy;
         c.fillStyle = CSS(iris);
-        c.beginPath(); c.arc(ex + sd * 1, ey - 1, 6.2, 0, 7); c.fill();
+        c.beginPath(); c.arc(ix, iy, 6.2, 0, 7); c.fill();
         c.fillStyle = RGBA(iris, 0.5, 0.55);
-        c.beginPath(); c.arc(ex + sd * 1, ey - 1, 6.2, 0, 7); c.lineWidth = 1.6; c.strokeStyle = RGBA(iris, .7, .4); c.stroke();
+        c.beginPath(); c.arc(ix, iy, 6.2, 0, 7); c.lineWidth = 1.6; c.strokeStyle = RGBA(iris, .7, .4); c.stroke();
         c.fillStyle = '#120e0a';
-        c.beginPath(); c.arc(ex + sd * 1, ey - 1, 2.7, 0, 7); c.fill();
+        c.beginPath(); c.arc(ix, iy, 2.7, 0, 7); c.fill();
+        // the catchlight does not travel with the eye: it is the window
+        // behind the player, and the window does not move
         c.fillStyle = 'rgba(255,255,255,.55)';
         c.beginPath(); c.arc(ex + sd * 1 - 2, ey - 3.4, 1.3, 0, 7); c.fill();
         // the lash line, which is what actually reads at this size
@@ -896,19 +1338,45 @@ export function mat(name, texFn, opts = {}) {
 }
 
 /** Clone a material with its own UV repeat, sized in world metres. */
+/*
+   A tiled surface used to clone its colour and normal maps outright, so
+   every wall and every floor in Ashgrove carried its own pair of Texture
+   objects. Three shares the underlying GL texture between clones of one
+   source, so this was never the VRAM disaster it looks like -- but it is
+   a few hundred needless objects per chapter, each with its own entry in
+   the renderer's property tables, and each one a distinct texture as far
+   as the render-list sort is concerned, which breaks up runs of
+   identical material state.
+
+   The only thing that varies between them is `repeat`, so cache on it.
+   Nothing in the game mutates a tiled material's map after the fact (the
+   one place that animates an offset, the television in props.js, clones
+   its own texture and never goes through here), so these are safe to
+   share. They are also deliberately never disposed: the cache is bounded
+   by the set of distinct surface sizes in the game, and the whole point
+   is that the next chapter gets to reuse them.
+*/
+const TILECACHE = new Map();
+
+function repeated(baseTex, rx, ry) {
+  const key = `${baseTex.uuid}|${rx}|${ry}`;
+  let t = TILECACHE.get(key);
+  if (!t) {
+    t = baseTex.clone();
+    t.needsUpdate = true;
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(rx, ry);
+    TILECACHE.set(key, t);
+  }
+  return t;
+}
+
 export function tiled(baseMat, worldW, worldH) {
   const m = baseMat.clone();
   const met = baseMat.userData.metres || 1;
-  const t = baseMat.map.clone(); t.needsUpdate = true;
-  t.wrapS = t.wrapT = THREE.RepeatWrapping;
-  t.repeat.set(Math.max(0.05, worldW / met), Math.max(0.05, worldH / met));
-  m.map = t;
-  if (baseMat.normalMap) {
-    const n = baseMat.normalMap.clone(); n.needsUpdate = true;
-    n.wrapS = n.wrapT = THREE.RepeatWrapping;
-    n.repeat.copy(t.repeat);
-    m.normalMap = n;
-  }
+  const rx = Math.max(0.05, worldW / met), ry = Math.max(0.05, worldH / met);
+  m.map = repeated(baseMat.map, rx, ry);
+  if (baseMat.normalMap) m.normalMap = repeated(baseMat.normalMap, rx, ry);
   return m;
 }
 
@@ -947,6 +1415,8 @@ export const MAT = {
   get quilt() { return mat('quilt', T.quilt, { roughness: .95, normalStrength: 2.0 }); },
   get fabric() { return mat('fabricdark', T.fabricdark, { roughness: .98 }); },
   get coat() { return mat('barncoat', T.barncoat, { roughness: .95 }); },
+  get grass() { return mat('grass', T.grass, { roughness: 1.0, normalStrength: 1.0 }); },
+  get vinyl() { return mat('vinyl', T.vinyl, { roughness: .82, normalStrength: 0.8 }); },
   get paper() { return mat('paper', T.paper, { roughness: .9 }); },
   get glass() { return new THREE.MeshPhysicalMaterial({ color: 0x8fa6b8, roughness: .06, metalness: 0, transmission: .82, thickness: .02, transparent: true, opacity: .32 }); }
 };

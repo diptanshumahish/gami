@@ -41,15 +41,21 @@ function pushFrame(dtms) {
   perf = { fps: 1000 / med, ms: med, worst: s[s.length - 1] };
 }
 
-/** How many shadow maps the renderer is asked to redraw every frame. */
+/**
+ * How many shadow maps the renderer is actually redrawing this frame,
+ * against how many it would redraw with no culling at all. A point light
+ * is six passes, not one: its shadow is a cube.
+ * `render.js:_cullShadows` is what moves the first number.
+ */
 function shadowCensus(scene) {
-  let point = 0, other = 0, dark = 0, passes = 0;
+  let casters = 0, live = 0, passes = 0, uncapped = 0;
   scene?.traverse(o => {
-    if (!o.isLight || !o.castShadow) return;
-    if (o.intensity <= 0.001) dark++;
-    if (o.isPointLight) { point++; passes += 6; } else { other++; passes += 1; }
+    if (!o.isLight || !o.castShadow || !o.shadow) return;
+    const cost = o.isPointLight ? 6 : 1;
+    casters++; uncapped += cost;
+    if (o.shadow.autoUpdate !== false || o.shadow.needsUpdate) { live++; passes += cost; }
   });
-  return { point, other, dark, passes };
+  return { casters, live, passes, uncapped };
 }
 
 function lightCensus(scene) {
@@ -67,14 +73,22 @@ export function initDiag(g) {
   // Watchdog: if we believe we are playing, the fade is clear, and the
   // renderer has drawn nothing for several seconds, say so out loud.
   let blackFor = 0, last = performance.now();
+  let fadeCheck = 0, faded = false;
   const tick = () => {
     requestAnimationFrame(tick);
     const now = performance.now();
     const dt = (now - last) / 1000; last = now;
     pushFrame(dt * 1000);
     const info = game?.renderer?.renderer?.info?.render;
-    const fade = document.getElementById('fade');
-    const faded = fade && getComputedStyle(fade).opacity > 0.9;
+    // getComputedStyle forces a style recalculation, and this used to run
+    // at display rate for the whole session. The watchdog waits four
+    // seconds before it says anything, so four times a second is plenty.
+    fadeCheck -= dt;
+    if (fadeCheck <= 0) {
+      fadeCheck = 0.25;
+      const fade = document.getElementById('fade');
+      faded = !!fade && getComputedStyle(fade).opacity > 0.9;
+    }
     const stuck = game?.mode === 'play' && !faded && (!info || info.calls === 0);
     blackFor = stuck ? blackFor + dt : 0;
     if (blackFor > 4 && !visible) {
@@ -108,6 +122,7 @@ function paint() {
   const r = g.renderer?.renderer?.info?.render;
   const mem = g.renderer?.renderer?.info?.memory;
   const sh = shadowCensus(g.scene);
+  const lp = g.world?.poolStats?.size ? g.world.poolStats : null;
   const gl = g.renderer?.renderer;
   const dpr = gl ? `${gl.getPixelRatio().toFixed(2)} -> ${gl.domElement.width}x${gl.domElement.height} (${(gl.domElement.width * gl.domElement.height / 1e6).toFixed(2)} Mpx)` : '';
   const fade = document.getElementById('fade');
@@ -122,8 +137,9 @@ function paint() {
     ['device px', dpr],
     ['draw calls', r ? r.calls : 'no renderer'],
     ['triangles', r ? r.triangles : ''],
-    ['shadow passes/frame', sh ? `${sh.passes}  (${sh.point} point x6, ${sh.other} other, ${sh.dark} switched off)` : ''],
+    ['shadow passes/frame', sh ? `${sh.passes} of ${sh.uncapped}  (${sh.live}/${sh.casters} casters live)` : ''],
     ['lights in scene', lightCensus(g.scene)],
+    ['light pool', lp ? `${lp.used}/${lp.size} slots lit, ${lp.starved} starved, ${g.world.virtual.length} virtual` : 'none'],
     ['gpu textures', mem ? mem.textures : ''],
     ['gpu geometries', mem ? mem.geometries : ''],
     ['programs', g.renderer?.renderer?.info?.programs?.length ?? ''],

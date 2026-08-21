@@ -62,8 +62,8 @@ const FinalShader = {
     cameraNear: { value: 0.1 }, cameraFar: { value: 300 },
     focus: { value: 3.0 }, aperture: { value: 1.0 }, dofOn: { value: 1.0 },
     focusRange: { value: 0.25 }, maxBlur: { value: 0.0050 },
-    time: { value: 0 }, grain: { value: 0.06 }, ca: { value: 0.0012 },
-    vignette: { value: 0.4 },
+    time: { value: 0 }, grain: { value: 0.045 }, ca: { value: 0.0018 },
+    vignette: { value: 0.52 },
     lift: { value: new THREE.Vector3(0, 0, 0) },
     gamma: { value: new THREE.Vector3(1, 1, 1) },
     gain: { value: new THREE.Vector3(1, 1, 1) },
@@ -154,9 +154,26 @@ const FinalShader = {
       col = mix(vec3(l), col, sat);
       col = (col - 0.5)*contrast + 0.5;
 
-      // grain, animated
-      float g = fract(sin(dot(uv*resolution + time*97.0, vec2(12.9898,78.233)))*43758.5453);
-      col += (g - 0.5) * grain;
+      // grain: fine, animated, and scaled to the light that is there.
+      // Two things this must not do. It must not slide: a noise field
+      // offset by a fixed step every tick is a field the eye tracks
+      // moving across the frame, so the tick goes into the hash as a
+      // seed and the pattern is re-rolled in place. And it must not
+      // sprinkle white on black: additive noise on a near-black pixel
+      // can only ever brighten it, so the amplitude follows the
+      // luminance, with a small floor so the sky still has grain in it.
+      // And it must not boil. Most of the field is fixed, a film's grain
+      // structure, and only a share of it re-rolls, slowly, so the
+      // picture shimmers a little rather than seething.
+      vec2 gp = floor(uv*resolution);
+      float tick = floor(time*9.0);
+      float gs = fract(sin(dot(gp, vec2(12.9898,78.233)))*43758.5453);
+      float gd = fract(sin(dot(gp, vec2(12.9898,78.233)) + tick*91.7)*43758.5453);
+      float g = mix(gs, gd, 0.30);
+      float g2 = fract(sin(dot(floor(gp*0.5), vec2(39.346,11.135)) + tick*57.3)*43758.5453);
+      float lum = dot(col, vec3(0.2126,0.7152,0.0722));
+      float amp = grain * (0.25 + 1.1*smoothstep(0.0, 0.45, lum));
+      col += ((g - 0.5) * 0.85 + (g2 - 0.5) * 0.15) * amp;
 
       // vignette
       vec2 vc = (uv-0.5)*vec2(1.0, resolution.y/resolution.x);
@@ -186,16 +203,57 @@ const FinalShader = {
 */
 export const GRADES = {
   // Aug–Oct: sodium vapour amber over dusk blue-grey
-  autumn: { lift: [0.010, 0.008, 0.020], gamma: [1.0, 0.99, 1.03], gain: [1.04, 1.0, 0.96], sat: 0.94, contrast: 1.06, tint: 0xf6efe6, exposure: 0.94, tone: 0.62 },
+  // Low contrast, desaturated, a little milky in the blacks, and pushed
+  // to one warm cast: this is a camcorder in a kitchen, not a photograph.
+  autumn: { lift: [0.026, 0.022, 0.030], gamma: [1.0, 0.99, 1.03], gain: [1.03, 0.99, 0.94], sat: 0.74, contrast: 0.96, tint: 0xf3e8d8, exposure: 0.98, tone: 0.612 },
   // Nov–Dec: desaturate hard
-  winter: { lift: [0.016, 0.020, 0.028], gamma: [1.02, 1.01, 0.99], gain: [0.95, 0.99, 1.05], sat: 0.66, contrast: 1.1, tint: 0xe8eef6, exposure: 0.92, tone: 0.58 },
+  winter: { lift: [0.022, 0.026, 0.036], gamma: [1.02, 1.01, 0.99], gain: [0.95, 0.99, 1.05], sat: 0.58, contrast: 1.02, tint: 0xe8eef6, exposure: 0.92, tone: 0.476 },
   // Church: lamp-oil orange against total black. Nothing else.
-  church: { lift: [0.004, 0.002, 0.002], gamma: [0.95, 0.98, 1.05], gain: [1.12, 0.94, 0.74], sat: 0.84, contrast: 1.2, tint: 0xffd7ad, exposure: 0.9, tone: 0.5 },
+  church: { lift: [0.004, 0.002, 0.002], gamma: [0.95, 0.98, 1.05], gain: [1.12, 0.94, 0.74], sat: 0.84, contrast: 1.2, tint: 0xffd7ad, exposure: 0.9, tone: 0.425 },
   // Ending: the only clean daylight in the game.
-  daylight: { lift: [0.024, 0.026, 0.028], gamma: [1.04, 1.04, 1.04], gain: [1.06, 1.07, 1.08], sat: 0.88, contrast: 0.96, tint: 0xffffff, exposure: 1.0, tone: 0.82 },
+  daylight: { lift: [0.024, 0.026, 0.028], gamma: [1.04, 1.04, 1.04], gain: [1.06, 1.07, 1.08], sat: 0.88, contrast: 0.96, tint: 0xffffff, exposure: 1.0, tone: 0.697 },
   // Menu / letter
-  tape: { lift: [0.02, 0.02, 0.02], gamma: [1.0, 1.0, 1.0], gain: [0.95, 0.97, 1.0], sat: 0.5, contrast: 1.15, tint: 0xdfe6ec, exposure: 0.9, tone: 0.6 }
+  tape: { lift: [0.02, 0.02, 0.02], gamma: [1.0, 1.0, 1.0], gain: [0.95, 0.97, 1.0], sat: 0.5, contrast: 1.15, tint: 0xdfe6ec, exposure: 0.9, tone: 0.51 }
 };
+
+// ---------------------------------------------------------------- shadow cull
+/*
+   Three redraws the shadow map of every shadow-casting light in the
+   scene, every frame, with no regard for whether that light reaches
+   anything you can currently see (WebGLShadowMap.render: it skips a
+   light only when `shadow.autoUpdate` is false, and never looks at
+   intensity, distance or the frustum).
+
+   A point light is not one pass. Its frame extents are 4x2, so a 512
+   map becomes a 2048x1024 atlas and SIX full depth renders of the whole
+   world. Ashgrove has seven shadow-casting bulbs, and they were all
+   being redrawn at all times: the ones switched off, the ones three
+   streets away behind a wall, and the Vasko house that chapter six
+   builds at (300, -400, 0) so it can be cut to later.
+
+   The cull is exact rather than a heuristic. A point or spot light with
+   a finite `distance` contributes precisely zero past that radius --
+   three's falloff reaches zero AT the cutoff, it does not taper beyond
+   it -- so if the light's influence sphere misses the frustum, or its
+   intensity is zero, no visible fragment can be lit by it and its
+   shadow map cannot be seen. Leaving that map stale is invisible.
+
+   Two things this deliberately does not do:
+     - it does not touch `castShadow`, because the number of shadow
+       casters is baked into every material's shader defines, and
+       changing it would recompile the entire scene mid-frame;
+     - it does not cull directional lights, which have no radius, and
+       it does not freeze static maps, because doors swing and people
+       walk and those shadows have to keep up.
+*/
+const _frustum = new THREE.Frustum();
+const _projScreen = new THREE.Matrix4();
+const _cullSphere = new THREE.Sphere();
+const _lightPos = new THREE.Vector3();
+// A metre of slack on the influence radius, so nothing can pop at the
+// exact edge of the frustum on a frame where something moved fast.
+const SHADOW_CULL_MARGIN = 1.0;
+const SHADOW_RESCAN = 0.5;   // seconds between rebuilds of the light list
 
 export class Renderer {
   constructor(canvas) {
@@ -219,6 +277,8 @@ export class Renderer {
     this.applySettings();
     this._focusTarget = 3;
     this._t = 0;
+    this._shadowLights = [];
+    this._shadowScan = 0;
 
     addEventListener('resize', () => this.resize());
   }
@@ -242,7 +302,9 @@ export class Renderer {
 
   _dpr() {
     const q = settings().quality;
-    const cap = q === 'high' ? 1.6 : q === 'medium' ? 1.15 : 0.85;
+    // A touch under native on purpose: the frame should carry a faint
+    // upscaled softness, not a pin-sharp edge on every brick.
+    const cap = q === 'high' ? 1.0 : q === 'medium' ? 0.85 : 0.7;
     return Math.min(devicePixelRatio || 1, cap);
   }
 
@@ -270,7 +332,9 @@ export class Renderer {
     if (q !== 'low') {
       // strength / radius / threshold, low and tight. Practical lights are
       // supposed to read as lights, not as weather.
-      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.22, 0.32, 0.92);
+      // low strength, WIDE radius: a practical bleeds into the pixels
+      // round it rather than sitting in a tight hot disc
+      this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x, size.y), 0.22, 0.85, 0.74);
       c.addPass(this.bloom);
     }
     this.final = new ShaderPass(FinalShader);
@@ -337,15 +401,51 @@ export class Renderer {
     const s = settings();
     this._applyFov();
     const u = this.final.uniforms;
-    u.grain.value = s.noFlashing ? 0.03 : 0.06;
-    u.ca.value = s.reduceMotion ? 0.0006 : 0.0012;
+    // Reduce Flashing halves the grain; nothing removes it.
+    u.grain.value = s.noFlashing ? 0.02 : 0.045;
+    u.ca.value = s.reduceMotion ? 0.0009 : 0.0018;
     const dof = s.dof ?? 1;
     u.aperture.value = dof;
     u.dofOn.value = (dof > 0.01 && s.quality !== 'low') ? 1 : 0;
     if (this.bloom) this.bloom.strength = 0.22 * (s.bloom ?? 1);
   }
 
+  /** See the note above the class. Runs before render(), every frame. */
+  _cullShadows(dt) {
+    this._shadowScan -= dt;
+    if (this._shadowScan <= 0) {
+      this._shadowScan = SHADOW_RESCAN;
+      const list = this._shadowLights;
+      list.length = 0;
+      this.scene.traverse(o => {
+        if (o.isLight && o.castShadow && o.shadow && (o.isPointLight || o.isSpotLight)) list.push(o);
+      });
+    }
+    const lights = this._shadowLights;
+    if (!lights.length) return;
+
+    const cam = this.camera;
+    cam.updateMatrixWorld();
+    _projScreen.multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse);
+    _frustum.setFromProjectionMatrix(_projScreen);
+
+    for (let i = lights.length - 1; i >= 0; i--) {
+      const l = lights[i];
+      if (!l.parent) { lights.splice(i, 1); continue; }   // chapter tore it down
+      let live = l.visible && l.intensity > 0.001;
+      if (live && l.distance > 0) {
+        l.getWorldPosition(_lightPos);                     // walks the parent chain, so never a frame stale
+        _cullSphere.center.copy(_lightPos);
+        _cullSphere.radius = l.distance + SHADOW_CULL_MARGIN;
+        live = _frustum.intersectsSphere(_cullSphere);
+      }
+      l.shadow.autoUpdate = live;
+      if (!live) l.shadow.needsUpdate = false;
+    }
+  }
+
   update(dt) {
+    this._cullShadows(dt);
     this._t += dt;
     const u = this.final.uniforms;
     u.time.value = this._t;

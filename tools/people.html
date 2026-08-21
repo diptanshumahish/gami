@@ -1,0 +1,120 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>people, held</title>
+<!--
+  A line-up of the cast in one lit room with the real renderer and post
+  stack, so the people can be looked at without playing to them.
+
+    ?who=recca,victor,marta,dale,ost,extra,extra2   who stands in the line
+    ?dist=3.2   ?height=1.4   ?yaw=0   ?fov=45       the camera
+    ?walk=1      mid-stride instead of standing
+    ?sit=1       the chapters' sitting pose, held
+    ?turn=45     turn everybody this many degrees
+    ?night=1     the bulb only, no daylight through the window
+    ?frames=N    then window.__ready; ?capture=1 POSTs the frame to /save
+                 (see tools/capture.js: page=/tools/people.html)
+-->
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<canvas id="viewport"></canvas>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Renderer } from '/src/core/render.js';
+import { World } from '/src/world/world.js';
+import { MAT } from '/src/world/mat.js';
+import { humanoid, Character, makeRecca, makeVictor, makeMarta, makeGeneric } from '/src/world/props.js';
+import { extra } from '/src/world/life.js';
+
+const P = new URLSearchParams(location.search);
+const num = (k, d) => P.has(k) ? parseFloat(P.get(k)) : d;
+const log = (m) => fetch('/log', { method: 'POST', body: String(m) }).catch(() => {});
+window.addEventListener('error', e => log('ERR ' + e.message + ' ' + (e.error && e.error.stack)));
+
+const renderer = new Renderer(document.getElementById('viewport'));
+const world = new World(renderer.scene);
+renderer.setGrade(P.get('grade') || 'autumn');
+const night = P.get('night') === '1';
+
+// a room: plaster, a wood floor, one bulb
+const W = 9, D = 7, H = 2.7;
+world.floor(-W / 2, -D / 2, W, D, { surface: 'wood', mat: MAT.wood });
+world.ceiling(-W / 2, -D / 2, W, D, { y: H });
+world.wall(-W / 2, -D / 2, W, { h: H });                  // back wall
+world.wall(-W / 2, -D / 2, D, { axis: 'z', h: H });
+world.wall(W / 2, -D / 2, D, { axis: 'z', h: H });
+world.hemi(night ? 0x2a3140 : 0x8a8fa0, night ? 0x120d08 : 0x3a3028, night ? 0.5 : 1.2);
+if (!night) world.sun([-0.35, -0.55, -0.55], 0xE8CBA4, 1.3);
+world.bulb(0, H - 0.25, 0.8, { color: 0xffd9a0, intensity: night ? 2.4 : 1.2, dist: 9 });
+world.bulb(-2.8, H - 0.25, 0.6, { color: 0xffd9a0, intensity: night ? 1.2 : 0.6, dist: 7 });
+
+const who = (P.get('who') || 'recca,victor,marta,dale,extra').split(',').filter(Boolean);
+const MAKE = {
+  recca: () => makeRecca(world),
+  victor: () => makeVictor(world),
+  marta: () => makeMarta(world),
+  dale: () => makeGeneric(world, { name: 'DALE', height: 1.76, skin: 0xd0a888, hair: 0xcfcac0, top: 0xe8e4d8, bottom: 0x3a3a40,
+    boots: 0x2a2a2c, build: 1.2, hairLong: false, age: 0.5, hairStyle: 'short',
+    head: { wide: 1.07, jaw: 1.16, nose: 1.30, chin: 1.0, brow: 1.3 },
+    face: { age: 0.8, stubble: 0.5, iris: 0x51534a, eyeW: 0.88, eyeGap: 1.05, noseW: 1.25, mouthW: 1.06, id: 'dale' } }),
+  ost: () => makeGeneric(world, { name: 'OST', height: 1.55, skin: 0xd8bda6, hair: 0xd6d2c8, top: 0x7a6b7c, bottom: 0x3a3a40, boots: 0x2a2a2c,
+    build: 1.06, hairLong: false, female: 0.85, hairStyle: 'bun', age: 0.85, glasses: 0x4a453c,
+    head: { wide: 1.02, jaw: 0.88, nose: 1.06, chin: 0.90, brow: 0.8 },
+    face: { age: 1, iris: 0x5c5a4e, lipCol: 0x9e716b, eyeW: 0.88, eyeGap: 0.98, noseW: 1.06, mouthW: 0.92, lash: 0.3, id: 'ostrowski' } }),
+  man: () => makeGeneric(world, { name: 'MAN', height: 1.74, skin: 0xcaa286, hair: 0x3a2b20, top: 0x4a5a6a, bottom: 0x2f3540, build: 1.05, hairLong: false, face: { stubble: 0.9 } }),
+  woman: () => makeGeneric(world, { name: 'WOMAN', height: 1.66, skin: 0xe0bda2, hair: 0x6a5a45, top: 0x6b4a44, bottom: 0x2b2f34, build: 0.95, female: 1, hairStyle: 'bob' })
+};
+const people = [];
+const n = who.length, gap = 1.05;
+who.forEach((w, i) => {
+  const x = (i - (n - 1) / 2) * gap;
+  const turn = num('turn', 0) * Math.PI / 180;
+  if (w.startsWith('extra')) {
+    const seed = 1000 + parseInt(w.slice(5) || '0', 10) * 77;
+    const g = new THREE.Group(); world.add(g);
+    const p = extra(g, seed, { winter: P.get('winter') === '1' });
+    p.g.position.set(x, 0, 0); p.g.rotation.y = turn;
+    people.push({ kind: 'extra', p });
+  } else if (MAKE[w]) {
+    const c = MAKE[w]();
+    c.setPos(x, 0, 0); c.g.rotation.y = turn;
+    c.blinks = false;
+    if (P.get('walk') === '1') { c.moving = true; c.walkPhase = 1.2; c.target = null; }
+    if (P.get('look') === '1') c.lookAt(renderer.camera);
+    people.push({ kind: 'char', c });
+  }
+});
+
+const cam = renderer.camera;
+cam.fov = num('fov', 45); cam.updateProjectionMatrix();
+cam.position.set(num('cx', 0), num('height', 1.4), num('dist', 3.2));
+cam.rotation.order = 'YXZ';
+cam.rotation.set(num('pitch', -4) * Math.PI / 180, num('yaw', 0) * Math.PI / 180, 0);
+
+const N = Math.round(num('frames', 30));
+let k = 0;
+function loop() {
+  const dt = 1 / 60;
+  world.update(dt, { camera: cam });
+  // freeze the walk mid-stride for a still
+  people.forEach(o => { if (o.kind === 'char' && P.get('walk') === '1') { o.c.walkPhase = 1.2; o.c.moving = true; } });
+  // ?sit=1 holds the chapters' sitting pose (hips and knees at 1.5 rad), hovering at chair height
+  people.forEach(o => { if (o.kind === 'char' && P.get('sit') === '1') {
+    o.c.p.legs.forEach(l => { l.hp.rotation.x = -1.5; l.kn.rotation.x = 1.5; });
+    o.c.g.position.y = -0.42 * o.c.p.scale;
+  } });
+  world.updateLights(cam);
+  renderer.update?.(dt);
+  renderer.render();
+  k++;
+  if (k === N) {
+    window.__ready = true;
+    if (P.get('capture') === '1') {
+      const data = document.getElementById('viewport').toDataURL('image/png');
+      fetch('/save', { method: 'POST', body: data });
+      return;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>

@@ -126,19 +126,42 @@ ice," in September, when there is no ice.
 ### Chapter by chapter
 
 **Ch. 1, "Move-In Weekend"** · Aug 24 · 68°F
-Twenty-five minutes with no horror in them at all. Unpack, hang a mirror, meet
-the landlady, walk down to the laundromat because you forgot detergent. Recca is
-folding a load, the dryers are running, and the whole meeting is one long
-conversation over the tumble of the machines. Every dialogue branch ends with her
-writing her number on the back of a laundry ticket.
+Forty minutes, and it is a day rather than a conversation. It opens on the
+road: twelve miles of two-lane through hardwood under the last of the sun,
+and the player drives it, W and S and the wheel, with the radio on and his
+father texting. A deer. A sign. Somebody at the treeline in a coat three
+sizes too big for them, who is not in the mirror. Then the Fuel & Go at the
+edge of town at dusk: pump two, a plaque by the door with nine names on it
+and "Hale Colliery Company" at the bottom, a four-camera monitor behind the
+counter with his own car on it, and Marta Vasko making his change, looking
+at the ring on his hand a half second too long, and telling him to go on,
+he'll lose the light. Four more miles in the dark to Ridge Road.
 
-Two things are planted here and never pointed at. **The detergent is in Jared's
-hand the entire time**, the player is carrying it while he tells her he forgot
-it. And at the end of the night she stops at his door and does not come in, and
-he says *"come in."* He never takes it back.
+Then the last box up the outside stair past the landlady salting her step in
+August, the mirror, no quarters, the diner with nine faces on the corkboard,
+the pawn shop, and the laundromat, where Recca is folding a load and the
+whole meeting is one conversation over the tumble of the machines, broken
+three times by something he has to do with his hands. Every branch ends
+with her writing her number on the back of a laundry ticket.
 
-She also asks what *Hale* means. He can lie or tell the truth. She smiles either
-way, but the truth unlocks an extra line three hours later that guts you.
+Conversations are short and they are **locked**: when somebody in Ashgrove
+talks to you, you stand there and listen (`talk()` in `chapters/util.js`).
+
+Two things are planted here and never pointed at. **The detergent is in
+Jared's hand the entire time**, the player is carrying it while he tells her
+he forgot it. And at the end of the night she stops at his door and does not
+come in, and he says *"come in."* He never takes it back. She comes in,
+stands at the window, tells him not to count the streetlights, and goes.
+
+She also asks what *Hale* means. He can lie or tell the truth. She smiles
+either way, but the truth unlocks an extra line three hours later that guts
+you.
+
+And then the night, which is new: he texts her back too soon, goes to bed,
+and at 3:04 the radiator knocks. The landlady said you talk to it and it
+stops. You talk to it. It stops. Across the road, in front of the shut dry
+cleaner's, there is somebody looking up at his window, until the streetlamp
+goes out for half a second and there is not.
 
 **Ch. 2, "Small Hours"** · Sept 6 – Oct 12 · 54°F
 Five hard-cut vignettes: the walk home and the first kiss on the porch glider;
@@ -202,7 +225,7 @@ about it.
 
 He drives. The radio picks up WKRB and cuts to her voice mid-sentence. A forced
 stop for gas: Marta isn't working, a kid is, and behind the counter there is a
-four-camera security monitor. Camera 2 is the forecourt. Jared's Volvo is on it.
+four-camera security monitor. Camera 2 is the forecourt. Jared's Taurus is on it.
 **There is someone sitting in the passenger seat.** The player is free to turn
 around and look through the window at the car, which is empty. Look back at the
 monitor: also empty. This is the biggest single scare in the game and it is
@@ -547,10 +570,10 @@ envelopes at runtime.
 ### Systems
 
 - **The scare director** (`src/core/scares.js`), the design doc's rules are
-  enforced in code, not promised: a 19-entry manifest, type rotation so no two
+  enforced in code, not promised: a 22-entry manifest, type rotation so no two
   consecutive scares share a category, cadence gating (one per 12 min in Acts 1–2,
   one per 6 in Act 3), a chore lock so nothing fires during a difficult moment,
-  exactly **3 false alarms** and exactly **3 Contact scares**. There is a
+  exactly **4 false alarms** and exactly **3 Contact scares**. There is a
   self-audit that fails the test suite if those counts drift.
 - **Reduce Jumpscares** removes the audio sting *and the entire Contact category*
   while keeping every scare's staging.
@@ -724,8 +747,11 @@ Honest list.
 - **Buttons' nine feedings** are a single interactable rather than one scrap per
   chapter-region. He does follow you into the church, and he does not survive.
 - **No achievements.**
-- Character models are primitive-based; the only facial animation is Recca's jaw
-  tell.
+- Character models are one skinned mesh each (`src/world/body.js`: a lofted body
+  over a bone rig, clothes painted into a per-outfit atlas), with a deformed-sphere
+  head carrying a painted face; the only facial animation is the mouth, the blink
+  and the painted gaze. The people on the pavements are the same body at a low
+  setting.
 
 ---
 
@@ -825,7 +851,11 @@ src/core/
 src/world/
   world.js              World: colliders, floor rects, triggers, interactables, lights
   mat.js                every texture, drawn on canvas; normal maps derived by sobel
-  props.js              furniture, the clutter rule, humanoids, Character, Buttons
+  body.js               one skinned body per person: the Loft, the clothing atlas
+                        (hoodie, work jacket, flannel, sweater, barn coat, shirt;
+                        jeans, trousers, khakis; boots, shoes, sneakers), the rig
+  props.js              furniture, the clutter rule, humanoids (head, hair, glasses
+                        on a body.js rig), Character, Buttons
   streetlights.js       the thirty-one
   sky.js                the gradient dome, sun, moon, cloud and stars, by preset
   facades.js            the commercial rows opposite and either side, the town
@@ -835,8 +865,16 @@ src/world/
   life.js               the people on the pavements, the two or three of them
                         stopped and talking, and the traffic
   loc_home.js           118½ Ridge Rd, the hall outside it, the Wash-Rite beneath
-  loc_street.js         the block, the exterior stair and landing, the Volvo,
-                        the road, and the rest of Ridge Road either way
+  loc_street.js         the block, the exterior stair and landing, the road,
+                        and the rest of Ridge Road either way (`volvo()` is
+                        the old name of the car and now builds the Ford)
+  car.js                Jared's car: a 1993 Ford Taurus wagon, lofted from
+                        seventeen cross-sections (a real profile, cut arches,
+                        grooved shut lines, a glass band) with a full
+                        Taurus interior for the driving chapters: hooded
+                        cluster, angled centre stack, column stalks, a
+                        four-spoke wheel his hands are on, velour seats,
+                        the move-in boxes in the back
   loc_row.js            the two units in the row opposite that are not
                         painted glass: Kowal Cleaners and Stanko Realty,
                         with floors, back rooms and doors that open
@@ -846,7 +884,11 @@ src/world/
                         boiler room, bell tower, rectory, the four doors
   loc_town.js           diner, pawn, Fuel & Go, cemetery, library, the burning ground
 
-src/chapters/           ch1–ch6, the menu scene, shared beat helpers
+src/chapters/           ch1–ch6, the menu scene, shared beat helpers, and
+                        drive.js: the road on a rail that the player drives,
+                        in the Ford, hands on the wheel, with the indicator
+                        stalk and a treeline of built trees
+                        (Chapter One comes into town on it twice)
 src/content/            the twelve tapes; every readable document
 test/                   headless harness
 ```
@@ -854,7 +896,11 @@ test/                   headless harness
 **Adding a chapter** means exporting `{ id, card, title, date, temp, build(ctx) }`
 and adding it to `src/chapters/index.js`. `ctx` carries the world, player,
 renderer, UI, audio, phone, scare director, flags, and `next()` / `goto()` /
-`ending()`.
+`ending()`. The chapter is **live from the first line of `build()`**: the
+player controller, the interactor and the scare clock run while `build()`
+awaits, so a chapter may drive the player into town or wait for them to
+walk somewhere before it returns. A chapter that builds synchronously and
+returns is unaffected; the screen stays black until the fade.
 
 ---
 
@@ -905,7 +951,7 @@ minutes of Chapter One to get to them, and it reports its own mean frame time on
 and asserts:
 
 - every interactable resolves a non-empty label and has a `use()` handler
-- the scare manifest is exactly 19 entries / 3 false alarms / 3 Contact
+- the scare manifest is exactly 22 entries / 4 false alarms / 3 Contact
 - there are exactly 12 tapes with unique IDs, 9 flyers, and 9 names on the cap
 - no location throws while building, ticking, or answering floor queries
 

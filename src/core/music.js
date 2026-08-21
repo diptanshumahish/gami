@@ -18,6 +18,8 @@
    the same music changing its mind, not as a playlist.
    ============================================================ */
 
+import { pianoBuffer, pianoRegister } from './piano.js';
+
 // ---------------------------------------------------------------- pitch
 const A4 = 440;
 /** Scientific pitch: 'A3', 'C#4', 'Eb5' */
@@ -304,12 +306,22 @@ export const SCENES = {
   vasko:      'doll_house',
   reccas_room:'doll_house',
   ninth_hour: 'ninth_hour',
-  dread:      'ninth_hour'
+  dread:      'ninth_hour',
+  // the car. there is no score on the road: the radio is the music,
+  // if he has it on, and if he has not it is the engine and the wind.
+  drive:      null,
+  silent:     null
 };
 
 export const PIECE_IDS = Object.keys(PIECES);
+
+/** The pieces were written against a much darker instrument. Now
+ *  that the strings are real the lid comes up a little: every
+ *  piece's `tone` is opened by this much. */
+const TONE_OPEN = 1.6;
 export function pieceFor(scene) {
   if (!scene) return PIECES.old_doll;
+  if (scene in SCENES && SCENES[scene] === null) return null;     // a scene that asks for nothing
   return PIECES[SCENES[scene] || scene] || PIECES.old_doll;
 }
 
@@ -321,12 +333,12 @@ export class Music {
     this.intensity = 0;        // 0 calm → 1 the aisle at three in the morning
     this.scene = 'menu';
     this.piece = PIECES.old_doll;
+    this.silent = false;        // a scene with no piece: the score holds its breath
     this.pending = null;
     this.swapAt = 0;
     this.pieceBar = 0;
     this.nextTime = 0;
     this.timer = null;
-    this.wave = null;
     this.out = null;
   }
 
@@ -364,21 +376,16 @@ export class Music {
     return b;
   }
 
-  /** Felt-hammer partials. Much darker than a concert instrument. */
-  _buildWave() {
-    if (this.wave) return this.wave;
-    const amps = [0, 1, 0.38, 0.215, 0.115, 0.064, 0.038, 0.023, 0.015, 0.0095, 0.006, 0.004, 0.0028];
-    const real = new Float32Array(amps.length);
-    const imag = new Float32Array(amps.length);
-    for (let i = 0; i < amps.length; i++) imag[i] = amps[i];
-    this.wave = this.ctx.createPeriodicWave(real, imag, { disableNormalization: false });
-    return this.wave;
-  }
-
   /**
    * One key, pressed.
    * `dur` is how long it is held; the tail rings well past it,
    * because the pedal is down for the whole game.
+   *
+   * The string itself comes from piano.js, rendered once per pitch
+   * and played back as a sample. What happens here is the playing:
+   * how hard the key went down (which is the hammer lowpass opening),
+   * the swell on the bass, the tape wow, the music box on top, and
+   * the room it all lands in.
    */
   note(freq, when, dur = 2.0, vel = 0.5, opts = {}) {
     const e = this.e, ctx = this.ctx;
@@ -387,72 +394,63 @@ export class Music {
     const out = opts.dest || this.dry;
     const box = opts.box ?? P.box ?? 0.3;
     const felt = opts.felt ?? P.felt ?? 0.55;
-    const wave = this._buildWave();
+    const buf = pianoBuffer(ctx, freq, 'felt');
+    if (!buf) return;
 
     // 0 at the bottom of the keyboard, 1 at the top
-    const reg = Math.min(1, Math.max(0, Math.log2(freq / 41.2) / 5.6));
-    const ring = dur + (1 - reg) * 4.6 + 1.6;
-    const peak = vel * (0.30 - reg * 0.085) * (1 + (1 - reg) * 0.30);
-    // A bass note in this score is a swell, not a strike. The lower it
-    // is, the longer it takes to arrive: a couple of milliseconds at the
-    // top of the keyboard, a fifth of a second at the bottom. This is
-    // the single line that decides whether the low end is soothing or
-    // whether it thumps.
-    const att = opts.att ?? (0.010 + felt * 0.022 + Math.pow(1 - reg, 2) * 0.20);
+    const reg = pianoRegister(freq);
+    const ring = Math.min(buf.duration - 0.05, dur + (1 - reg) * 4.6 + 1.6);
+    const peak = vel * (0.42 - reg * 0.12) * (1 + (1 - reg) * 0.25);
+    // A felt hammer is a soft strike, not a click, and the lower the
+    // note the softer: a few milliseconds at the top, a fifth of that
+    // again at the bottom. It is still a strike. This is the line that
+    // decides whether the low end is a piano or a pad.
+    const att = opts.att ?? (0.004 + felt * 0.006 + Math.pow(1 - reg, 2) * 0.05);
     if (!(peak > 0)) return;
 
     const vca = ctx.createGain();
     vca.gain.setValueAtTime(0.0001, when);
-    // felt hammers do not click: the attack is milliseconds, not microseconds
     vca.gain.exponentialRampToValueAtTime(peak, when + att);
-    // the upper partials go first, then the long tail
-    vca.gain.exponentialRampToValueAtTime(Math.max(0.00012, peak * 0.26), when + att + 0.22 + (1 - reg) * 0.7);
-    vca.gain.exponentialRampToValueAtTime(0.0001, when + ring);
+    vca.gain.setValueAtTime(peak, when + ring);
+    vca.gain.exponentialRampToValueAtTime(0.0001, when + ring + 0.45);
 
+    // velocity is tone: a quiet note is a darker note. the felt strip
+    // takes the top off everything
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.Q.value = 0.5;
-    tone.frequency.setValueAtTime(Math.min(9000, freq * (10 - felt * 5) + 900), when);
-    tone.frequency.exponentialRampToValueAtTime(Math.max(280, freq * 2.4), when + 1.2 + (1 - reg) * 1.8);
+    tone.Q.value = 0.45;
+    const open = (900 + freq * 3.6) * (0.7 + vel * 1.4) * (1.3 - felt * 0.6) * (1 - this.intensity * 0.18);
+    tone.frequency.setValueAtTime(Math.min(9000, Math.max(freq * 2.2, open)), when);
+    tone.frequency.exponentialRampToValueAtTime(Math.max(240, freq * 1.9), when + 1.4 + (1 - reg) * 2.2);
     tone.connect(vca).connect(out);
 
+    // ---- the string ----
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    if (this.wowBus) this.wowBus.connect(src.detune);   // tape wow, shared by everything
+    src.connect(tone);
+    src.start(when);
+    src.stop(when + ring + 0.5);
+
     // ---- the bottom of the instrument ----
-    // A felt upright loses its fundamental to the hammer and to the
-    // filter envelope above, and the low notes end up as a shape
-    // rather than a pitch. This is a clean sine on the fundamental,
-    // under the strings, going straight past the tone filter: it is
-    // what puts the floor back under the left hand.
-    if (reg < 0.52 && freq > 24) {
+    // A felt upright loses some of its fundamental to the hammer, and
+    // the lowest notes end up as a shape rather than a pitch. A clean
+    // sine underneath, past the tone filter, puts the floor back.
+    if (reg < 0.42 && freq > 24) {
       const sub = ctx.createOscillator();
       sub.type = 'sine';
       sub.frequency.value = freq;
       if (this.wowBus) this.wowBus.connect(sub.detune);
       const sg = ctx.createGain();
-      const sa = peak * 0.62 * (1 - reg / 0.52);
-      const sd = ring * 0.86;
-      // a quarter of a second to come up, and then it just sits there
+      const sa = peak * 0.34 * (1 - reg / 0.42);
+      const sd = ring * 0.9;
       sg.gain.setValueAtTime(0.0001, when);
-      sg.gain.exponentialRampToValueAtTime(Math.max(0.00012, sa), when + Math.max(att, 0.26));
-      sg.gain.exponentialRampToValueAtTime(Math.max(0.00012, sa * 0.55), when + 1.4 + (1 - reg) * 1.6);
+      sg.gain.exponentialRampToValueAtTime(Math.max(0.00012, sa), when + Math.max(att, 0.09));
+      sg.gain.exponentialRampToValueAtTime(Math.max(0.00012, sa * 0.5), when + 1.2 + (1 - reg) * 1.6);
       sg.gain.exponentialRampToValueAtTime(0.0001, when + sd);
       sub.connect(sg).connect(out);
       sub.start(when); sub.stop(when + sd + 0.1);
     }
-
-    // ---- the strings. three of them, and none of them agree. ----
-    const spread = 1.6 + (P.drift || 0) * 1.4;
-    [[-spread, 0.58], [0, 0.72], [spread * 1.35, 0.40]].forEach(([cents, g0], i) => {
-      const o = ctx.createOscillator();
-      o.setPeriodicWave(wave);
-      o.frequency.value = freq * (1 + i * 0.00035);      // a touch of inharmonicity
-      o.detune.value = cents;
-      if (this.wowBus) this.wowBus.connect(o.detune);    // tape wow, shared by everything
-      const g = ctx.createGain();
-      g.gain.value = g0;
-      o.connect(g).connect(tone);
-      o.start(when);
-      o.stop(when + ring + 0.1);
-    });
 
     // ---- the music box on top. this is the doll. ----
     if (box > 0.02 && reg > 0.18) {
@@ -465,7 +463,7 @@ export class Music {
         o.detune.value = (Math.random() * 2 - 1) * 5 * (1 + (P.drift || 0));
         if (this.wowBus) this.wowBus.connect(o.detune);
         const g = ctx.createGain();
-        const bp = peak * a * box * 0.5;
+        const bp = peak * a * box * 0.32;
         const bd = (1.1 + (1 - reg) * 1.6) * decMul;
         g.gain.setValueAtTime(0.0001, when);
         g.gain.exponentialRampToValueAtTime(Math.max(0.00012, bp), when + 0.006);
@@ -473,26 +471,6 @@ export class Music {
         o.connect(g).connect(out);
         o.start(when); o.stop(when + bd + 0.05);
       });
-    }
-
-    // ---- the hammer. felt, so it is a thump and not a tick. ----
-    if (e.noise?.white) {
-      const n = ctx.createBufferSource();
-      n.buffer = e.noise.pink;
-      const nb = ctx.createBiquadFilter();
-      nb.type = 'lowpass';
-      nb.frequency.value = Math.min(2600, freq * 3.2 + 320);
-      nb.Q.value = 0.4;
-      const ng = ctx.createGain();
-      // felt on wound strings is nearly silent; the hammer is only
-      // really audible in the upper half of the instrument
-      const ha = peak * 0.30 * (1 - felt * 0.4) * Math.min(1, 0.12 + reg * 1.8);
-      ng.gain.setValueAtTime(0.0001, when);
-      ng.gain.exponentialRampToValueAtTime(Math.max(0.00012, ha), when + 0.008 + (1 - reg) * 0.03);
-      ng.gain.exponentialRampToValueAtTime(0.0001, when + 0.10 + (1 - reg) * 0.12);
-      n.connect(nb).connect(ng).connect(out);
-      n.start(when, Math.random() * 2, 0.3);
-      n.stop(when + 0.3);
     }
   }
 
@@ -529,9 +507,9 @@ export class Music {
     const body = ctx.createBiquadFilter();
     body.type = 'lowshelf'; body.frequency.value = 260; body.gain.value = 5.5;
     const glare = ctx.createBiquadFilter();
-    glare.type = 'peaking'; glare.frequency.value = 3000; glare.Q.value = 0.9; glare.gain.value = -4.5;
+    glare.type = 'peaking'; glare.frequency.value = 3000; glare.Q.value = 0.9; glare.gain.value = -2.5;
     this.tone = ctx.createBiquadFilter();
-    this.tone.type = 'lowpass'; this.tone.frequency.value = this.piece.tone; this.tone.Q.value = 0.4;
+    this.tone.type = 'lowpass'; this.tone.frequency.value = this.piece.tone * TONE_OPEN; this.tone.Q.value = 0.4;
 
     // dry: where every note is written
     this.dry = ctx.createGain();
@@ -620,7 +598,37 @@ export class Music {
   setScene(scene, { immediate = false } = {}) {
     const p = pieceFor(scene);
     this.scene = scene;
-    if (!p || (p === this.piece && !this.pending)) { this.pending = null; this.swapAt = 0; return; }
+    if (!p) {
+      // nothing to play. the tails go on into the hall and then it is quiet.
+      this.pending = null; this.swapAt = 0;
+      if (!this.silent) {
+        this.silent = true;
+        if (this.out) {
+          const t = this.e.t;
+          this.out.gain.cancelScheduledValues(t);
+          this.out.gain.setValueAtTime(Math.max(0.0001, this.out.gain.value), t);
+          this.out.gain.setTargetAtTime(0.0001, t, immediate ? 0.4 : 1.6);
+        }
+      }
+      return;
+    }
+    if (this.silent) {
+      // coming back from nothing: start clean on the new piece
+      this.silent = false;
+      this.piece = p; this.pending = null; this.swapAt = 0; this.pieceBar = 0;
+      if (this.out) {
+        const t = this.e.t;
+        this.nextTime = t + 0.3;
+        this.wetSend.gain.setTargetAtTime(p.wet, t, 0.5);
+        this.tone.frequency.setTargetAtTime(p.tone * TONE_OPEN * (1 - this.intensity * 0.25), t, 0.5);
+        this.echoSend.gain.setTargetAtTime(0.10 + p.wet * 0.14, t, 0.5);
+        this.out.gain.cancelScheduledValues(t);
+        this.out.gain.setValueAtTime(Math.max(0.0001, this.out.gain.value), t);
+        this.out.gain.setTargetAtTime(1, t, 1.2);
+      }
+      return;
+    }
+    if (p === this.piece && !this.pending) { this.pending = null; this.swapAt = 0; return; }
     this.pending = p;
     if (immediate && this.out) {
       const t = this.e.t;
@@ -634,7 +642,7 @@ export class Music {
   }
 
   /** What is playing, for the diagnostics overlay. */
-  get nowPlaying() { return this.piece?.title || ''; }
+  get nowPlaying() { return this.silent ? '' : (this.piece?.title || ''); }
 
   _swap() {
     this.piece = this.pending;
@@ -644,7 +652,7 @@ export class Music {
     if (!this.out) return;
     const t = this.e.t;
     this.wetSend.gain.setTargetAtTime(this.piece.wet, t, 0.5);
-    this.tone.frequency.setTargetAtTime(this.piece.tone * (1 - this.intensity * 0.25), t, 0.5);
+    this.tone.frequency.setTargetAtTime(this.piece.tone * TONE_OPEN * (1 - this.intensity * 0.25), t, 0.5);
     this.echoSend.gain.setTargetAtTime(0.10 + this.piece.wet * 0.14, t, 0.5);
     this.out.gain.cancelScheduledValues(t);
     this.out.gain.setValueAtTime(Math.max(0.0001, this.out.gain.value), t);
@@ -654,7 +662,7 @@ export class Music {
   setIntensity(v) {
     this.intensity = Math.max(0, Math.min(1, v));
     if (this.tone && this.piece) {
-      this.tone.frequency.setTargetAtTime(this.piece.tone * (1 - this.intensity * 0.25), this.e.t, 1.5);
+      this.tone.frequency.setTargetAtTime(this.piece.tone * TONE_OPEN * (1 - this.intensity * 0.25), this.e.t, 1.5);
     }
   }
 
@@ -670,6 +678,7 @@ export class Music {
   _schedule() {
     const e = this.e;
     if (!this.playing || !e.ready || !this.out) return;
+    if (this.silent) { this.nextTime = e.t + 0.3; return; }
 
     // a hard change: schedule nothing while the old piece falls away
     if (this.pending && this.swapAt) {

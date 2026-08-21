@@ -66,9 +66,14 @@ export const Phone = {
     switch (this.app) {
       case 'messages': {
         if (!s.messages.length) { S.innerHTML = `<h4>Messages</h4><div style="opacity:.45;padding:10px 2px">No messages.</div>`; break; }
-        S.innerHTML = `<h4>Recca</h4><div class="thread">` + s.messages.map(m =>
+        // one thread per correspondent, most recently written to at the
+        // bottom, which is where the thumb is
+        const threads = new Map();
+        s.messages.forEach(m => { const k = m.who || 'Recca'; if (!threads.has(k)) threads.set(k, []); threads.get(k).push(m); });
+        const order = [...threads.keys()].sort((a, b) => s.messages.lastIndexOf(threads.get(a).at(-1)) - s.messages.lastIndexOf(threads.get(b).at(-1)));
+        S.innerHTML = order.map(k => `<h4>${esc(k)}</h4><div class="thread">` + threads.get(k).map(m =>
           `<div class="msg ${m.from === 'me' ? 'me' : 'them'}">${esc(m.text)}<span class="t">${m.time || ''}</span></div>`
-        ).join('') + `</div>`;
+        ).join('') + `</div>`).join('');
         S.scrollTop = 9e9;
         break;
       }

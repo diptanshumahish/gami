@@ -14,6 +14,7 @@
    Output is disposable. Nothing in the game reads it.
    ============================================================ */
 const OUT = Deno.args[0] || 'audio-preview';
+const ONLY = Deno.args[1] || '';          // score,radio,sfx: which sets to bounce; a third arg `wav` keeps the WAVs too
 // pick a free port: a killed run can leave the old one held for a while
 const PORT = 8730 + Math.floor(Math.random() * 240);
 const CHROME = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
@@ -54,7 +55,7 @@ const chrome = new Deno.Command(CHROME, {
     '--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check',
     '--autoplay-policy=no-user-gesture-required', '--mute-audio',
     `--user-data-dir=${tmp}/profile`,
-    `http://127.0.0.1:${PORT}/`
+    `http://127.0.0.1:${PORT}/?only=${ONLY}`
   ],
   stdout: 'null', stderr: 'null'
 }).spawn();
@@ -91,6 +92,7 @@ for (const m of made) {
   });
   const { code, stderr } = await ff.output();
   if (code !== 0) { console.error(`  ${m.name}: ${new TextDecoder().decode(stderr)}`); continue; }
+  if (Deno.args[2] === 'wav') await Deno.copyFile(m.wav, `${OUT}/${m.name}.wav`);   // the raw take, for analysis
   const { size } = await Deno.stat(mp3);
   console.log(`  ${mp3}  ${(size / 1024).toFixed(0)} KB  "${m.title}"`);
 }

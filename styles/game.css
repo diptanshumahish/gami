@@ -47,6 +47,11 @@
   --register: 'EB Garamond', serif;
   --sigil: 'UnifrakturMaguntia', serif;
   --mono: 'JetBrains Mono', monospace;
+  /* the wordmark face. Heavy geometric grotesque, tracked tight, set
+     solid in bone and sodium over the street. The mono carries
+     everything said about the name; this only carries the name. */
+  --wordmark: 'Archivo Black', 'Archivo', Impact, system-ui, sans-serif;
+  --menu-sans: 'Archivo', 'Archivo Black', system-ui, sans-serif;
 
   --amber: #E8A653;
   --tungsten: #FFC58A;
@@ -1408,4 +1413,336 @@ button {
 
 #app.pointer-locked {
   cursor: none
+}
+/* ============================================================
+   TITLE SCREEN (#menu.title)
+
+   Nothing here is a panel and nothing is a widget: the world is
+   the background, and four blocks of flat type sit on it.
+   Wordmark left at eye height, the list of words on the right,
+   the small print in the bottom corner, one bordered readout top
+   right.
+
+   The two colours are the two colours this game already owns: a
+   cold bone white for the thing itself and sodium amber for the
+   street it stands on. The heavy sans carries the name, VCR OSD
+   Mono carries everything said about it, which is the same
+   division of labour as the chapter cards and the phone.
+
+   No scrim slab here. The plate is darkened at the corners by
+   inset shadows on #menu.title and every piece of type carries a
+   hard black shelf, which is what holds it over a lit street.
+   ============================================================ */
+#menu.title::before {
+  display: none
+}
+
+#menu.title {
+  overflow: hidden;
+  box-shadow:
+    inset 34vw -30vh 260px -20px rgba(0, 0, 0, .74),
+    inset -26vw 20vh 260px -60px rgba(20, 26, 34, .40),
+    inset 0 0 250px 100px rgba(0, 0, 0, .50)
+}
+
+#menu.title .inner {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  margin: 0;
+  padding: 0
+}
+
+/* ---------- the wordmark, low left ---------- */
+/* Held below the middle, clear of the shopfront and its sign: the name
+   wants plain brick and pavement behind it, not somebody else's type. */
+#menu .wordmark {
+  position: absolute;
+  left: clamp(22px, 5.4vw, 112px);
+  top: 57%;
+  transform: translateY(-32%);
+  max-width: 56vw
+}
+
+/* the station ident, above the name, in the face the radio uses
+   everywhere else in this game */
+#menu .wordmark .over {
+  font-family: var(--vcr);
+  font-size: clamp(10px, .92vw, 16px);
+  letter-spacing: .34em;
+  text-transform: uppercase;
+  color: var(--amber);
+  opacity: .88;
+  margin: 0 0 clamp(6px, .8vw, 15px) 3px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .9)
+}
+
+/* KESSLERTON over ROW, stacked and set solid, so the name is a slab
+   rather than a line. Bone for the town, sodium for the road. */
+#menu .wordmark .mark {
+  font-family: var(--wordmark);
+  font-size: clamp(28px, 4.9vw, 92px);
+  line-height: .88;
+  letter-spacing: -.018em;
+  text-transform: uppercase;
+  color: #F4F1EA;
+  margin: 0;
+  /* a hard black shelf under the letterform and one centred bloom in
+     its own colour. No horizontal offset carries a hue, so this stays
+     a lit sign and never becomes a channel split. */
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, .92),
+    0 0 40px rgba(0, 0, 0, .55)
+}
+
+/* the second line, and the rule that runs out of it to the frame edge.
+   Two solid segments stepping down in weight, the same broadcast rule
+   the rest of the menus use, hung off the word instead of under it. */
+#menu .wordmark .road {
+  display: flex;
+  align-items: center;
+  gap: clamp(10px, 1.4vw, 26px)
+}
+
+#menu .wordmark .road .mark {
+  color: var(--amber);
+  text-shadow:
+    0 3px 0 rgba(0, 0, 0, .92),
+    0 0 44px rgba(232, 166, 83, .30)
+}
+
+#menu .wordmark .road .bar {
+  position: relative;
+  flex: 1;
+  height: 2px;
+  margin-bottom: clamp(3px, .5vw, 9px);
+  background: rgba(232, 166, 83, .70)
+}
+
+#menu .wordmark .road .bar::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 46%;
+  height: 2px;
+  background: rgba(232, 166, 83, .18)
+}
+
+/* where the story is and when. Mono, cold, quiet. */
+#menu .wordmark .ep {
+  font-family: var(--vcr);
+  font-size: clamp(11px, 1.05vw, 19px);
+  letter-spacing: .22em;
+  text-transform: uppercase;
+  color: #A9B4C0;
+  margin: clamp(12px, 1.6vw, 26px) 0 0 3px;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .9)
+}
+
+/* ---------- the list, right, at eye height ---------- */
+#menu .mainnav {
+  position: absolute;
+  left: 68%;
+  top: 50%;
+  transform: translateY(-52%);
+  list-style: none
+}
+
+#menu .mainnav>li>button {
+  display: block;
+  width: auto;
+  text-align: left;
+  font-family: var(--menu-sans);
+  font-weight: 700;
+  font-size: clamp(15px, 1.72vw, 32px);
+  letter-spacing: .07em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  padding: 3px 0 3px clamp(20px, 1.9vw, 36px);
+  color: #C6CBD1;
+  background: transparent;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .9);
+  transition: color .13s, letter-spacing .13s, padding .13s
+}
+
+/* the amber caret the rest of the game's menus use, kept, because it is
+   how this game says "this one". It just has further to travel here. */
+#menu .mainnav>li>button::before {
+  content: ">";
+  position: absolute;
+  left: 0;
+  color: var(--amber);
+  opacity: 0;
+  transform: translateX(-7px);
+  transition: opacity .13s, transform .13s
+}
+
+#menu .mainnav>li {
+  position: relative
+}
+
+#menu .mainnav>li>button:hover,
+#menu .mainnav>li>button.sel {
+  color: #fff;
+  letter-spacing: .1em;
+  padding-left: clamp(26px, 2.5vw, 46px);
+  background: transparent
+}
+
+#menu .mainnav>li>button:hover::before,
+#menu .mainnav>li>button.sel::before {
+  opacity: 1;
+  transform: translateX(0)
+}
+
+#menu .mainnav>li>button[disabled] {
+  opacity: .30;
+  cursor: not-allowed;
+  transform: none
+}
+
+/* ---------- small print, bottom corner ---------- */
+#menu .footnote {
+  position: absolute;
+  left: clamp(22px, 5.4vw, 112px);
+  bottom: clamp(18px, 5.2vh, 56px);
+  font-family: var(--vcr);
+  font-size: clamp(10px, .82vw, 15px);
+  letter-spacing: .14em;
+  line-height: 1.7;
+  color: #8D96A1;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, .9)
+}
+
+#menu .footnote .ver {
+  display: block;
+  margin-bottom: clamp(8px, 2vh, 22px);
+  opacity: .6
+}
+
+#menu .footnote .addr {
+  color: var(--amber);
+  opacity: .8
+}
+
+/* ---------- the one bordered readout, top right ---------- */
+#menu .corner {
+  position: absolute;
+  right: clamp(22px, 4.2vw, 92px);
+  top: clamp(18px, 4.6vh, 50px);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(232, 166, 83, .48);
+  background: rgba(8, 9, 12, .42);
+  padding: clamp(6px, .7vw, 12px) clamp(10px, 1.1vw, 18px);
+  font-family: var(--vcr);
+  letter-spacing: .2em;
+  text-transform: uppercase;
+  color: var(--amber)
+}
+
+/* the label rides inside the box, so the box is a readout and not a
+   rectangle with a word loose in it */
+#menu .corner .k {
+  font-size: clamp(9px, .74vw, 13px);
+  opacity: .55
+}
+
+#menu .corner select {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #E4E2DC;
+  font-family: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  font-size: clamp(10px, .84vw, 15px);
+  padding: 0 4px 0 0;
+  min-width: clamp(64px, 6.4vw, 110px);
+  cursor: pointer
+}
+
+#menu .corner select option {
+  background: #0b0d10;
+  color: #e8e6e1
+}
+
+#menu .corner::after {
+  content: "\25BE";
+  font-family: var(--vcr);
+  font-size: clamp(10px, .9vw, 16px);
+  opacity: .75;
+  pointer-events: none
+}
+
+/* ---------- the tape tearing ----------
+   Two thin bands of dashed white that crawl up the frame, the way a
+   worn tape drops sync for a line at a time. An SVG tile, not a
+   gradient, and it never touches the type it passes over. */
+#menu .tear {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  pointer-events: none;
+  opacity: .13;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='3'%3E%3Crect x='0' y='0' width='23' height='2' fill='%23fff' fill-opacity='.75'/%3E%3Crect x='31' y='1' width='9' height='2' fill='%23fff' fill-opacity='.45'/%3E%3Crect x='47' y='0' width='14' height='2' fill='%23fff' fill-opacity='.6'/%3E%3C/svg%3E");
+  background-size: 64px 3px;
+  animation: tear 9.5s linear infinite
+}
+
+#menu .tear.b {
+  height: 2px;
+  opacity: .08;
+  animation-duration: 23s;
+  animation-delay: -7s
+}
+
+@keyframes tear {
+  0% {
+    top: 104%
+  }
+
+  100% {
+    top: -6%
+  }
+}
+
+/* Reduce motion and No flashing both park the tearing. It is texture,
+   never information, so losing it costs nothing. */
+#menu.still .tear {
+  animation: none;
+  top: 62%;
+  opacity: .05
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #menu .tear {
+    animation: none;
+    top: 62%;
+    opacity: .12
+  }
+}
+
+/* Narrow frames drop the two-column band and stack it, wordmark over
+   list, because the list must never run off the right edge. */
+@media (max-width: 860px) {
+  #menu .wordmark {
+    top: clamp(60px, 16vh, 150px);
+    transform: none;
+    max-width: 90vw
+  }
+
+  #menu .mainnav {
+    left: clamp(22px, 5.4vw, 112px);
+    top: auto;
+    bottom: clamp(96px, 24vh, 220px);
+    transform: none
+  }
+
+  #menu .footnote {
+    font-size: 11px
+  }
 }

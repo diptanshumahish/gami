@@ -34,7 +34,7 @@
    ============================================================ */
 import * as THREE from 'three';
 import { MAT, flat, tiled, tex } from './mat.js';
-import { SCALE, BOX, CYL, PLN } from './world.js';
+import { SHAPE, SCALE, BOX, CYL, PLN } from './world.js';
 import { makeDoor } from './door.js';
 import { counter, desk, chair, shelfUnit, cardboardBox, clutter } from './props.js';
 import { facadeSign } from './facades.js';
@@ -374,7 +374,7 @@ function cleaners(world, S, h, { night, open }) {
   R.bags = [];
   for (let i = 0; i < 10; i++) {
     const bz = railZ0 + 0.24 + i * 0.32;
-    const hook = new THREE.Mesh(new THREE.TorusGeometry(0.035, 0.005, 5, 12, Math.PI * 1.5), flat(0xb8bcbe, { rough: .3, metal: .8 }));
+    const hook = new THREE.Mesh(SHAPE.Torus(0.035, 0.005, 5, 12, Math.PI * 1.5), flat(0xb8bcbe, { rough: .3, metal: .8 }));
     hook.position.set(railX, railY - 0.02, bz);
     world.add(hook);
     if (i === 9) { R.emptyHook = hook; continue; }     // the tenth. nothing on it.
@@ -407,7 +407,7 @@ function cleaners(world, S, h, { night, open }) {
   coat.position.y = -0.66; own.add(coat);
   const ticket = new THREE.Mesh(PLN(0.1, 0.14), flat(0xe9e0c8, { rough: .95, side: THREE.DoubleSide }));
   ticket.position.set(0.16, -0.2, 0.1); own.add(ticket);
-  const hk = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.006, 5, 12, Math.PI * 1.6), flat(0xb8bcbe, { rough: .3, metal: .8 }));
+  const hk = new THREE.Mesh(SHAPE.Torus(0.04, 0.006, 5, 12, Math.PI * 1.6), flat(0xb8bcbe, { rough: .3, metal: .8 }));
   hk.rotation.y = Math.PI / 2; own.add(hk);
   own.traverse(o => { if (o.isMesh) o.castShadow = true; });
   world.add(own);

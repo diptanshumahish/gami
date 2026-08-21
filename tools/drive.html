@@ -1,0 +1,99 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>the road in, held</title>
+<!--
+  The drive rail with the real renderer, so the road can be looked at
+  without playing the title card and the letter to get to it.
+    ?palette=golden|dusk|night   ?frames=N   ?yaw=&pitch=   ?speed=   ?hands=0   ?steer=-1..1
+  window.__ready goes true once N frames have been drawn.
+-->
+<style>html,body{margin:0;background:#000;overflow:hidden}canvas{display:block}</style>
+<canvas id="viewport"></canvas>
+<script type="importmap">{"imports":{"three":"/vendor/three/build/three.module.js","three/addons/":"/vendor/three/examples/jsm/"}}</script>
+<script type="module">
+import * as THREE from 'three';
+import { Renderer } from '/src/core/render.js';
+import { World } from '/src/world/world.js';
+import { Player } from '/src/core/player.js';
+import { Input } from '/src/core/input.js';
+import { buildSky } from '/src/world/sky.js';
+import { UI } from '/src/core/ui.js';
+import { driveRail, roadSign, deer, PALETTES } from '/src/chapters/drive.js';
+import { ViewModel } from '/src/core/viewmodel.js';
+
+const P = new URLSearchParams(location.search);
+const num = (k, d) => P.has(k) ? parseFloat(P.get(k)) : d;
+const pal = P.get('palette') || 'golden';
+
+// the UI needs its elements; give it a minimal DOM
+for (const id of ['hud','crosshair','prompt','subs','subline','choices','card','fade','vhs','letterbox','reader','toast','carrybar','stamina','menu','phone']) {
+  const d = document.createElement('div'); d.id = id; d.className = 'hidden';
+  if (id === 'subline') d.innerHTML = '<b class="who"></b><span class="what"></span>';
+  if (id === 'choices') d.innerHTML = '<div class="wrap"></div>';
+  if (id === 'card') d.innerHTML = '<div class="num"></div><div class="name"></div><div class="meta"></div>';
+  if (id === 'reader') d.innerHTML = '<div class="sheet"></div><button class="close"></button>';
+  if (id === 'crosshair') d.innerHTML = '<span class="dot"></span><span class="ring"></span>';
+  if (id === 'stamina') d.innerHTML = '<span></span>';
+  document.body.appendChild(d);
+}
+UI.init();
+
+const renderer = new Renderer(document.getElementById('viewport'));
+const world = new World(renderer.scene);
+renderer.setGrade('autumn');
+const sky = buildSky(world, { preset: pal === 'golden' ? 'golden' : pal === 'dusk' ? 'dusk' : 'night', camera: renderer.camera, fogDensity: 0.0078 });
+const hemi = world.hemi(0x9a86a0, 0x5a4a34, 1.2);
+const sun = world.sun([0.84, -0.26, -0.30], pal === 'golden' ? 0xF2B46C : 0xE09A5A, pal === 'golden' ? 2.4 : 0.8, true, 60);
+if (pal !== 'golden') { hemi.intensity = 0.85; hemi.color.setHex(0x54677f); hemi.groundColor.setHex(0x2b241c); }
+world.add(sun.target);
+const RAIL = { x: 600, z: 0 };
+sun.position.set(RAIL.x - 0.84 * 40, 0.22 * 40, RAIL.z + 0.30 * 40);
+sun.target.position.set(RAIL.x, 0, RAIL.z);
+
+const player = new Player(renderer.camera, world);
+player.teleport(RAIL.x - 0.38, RAIL.z + 0.15, 0.42, 0);
+player.yaw = num('yaw', 0) * Math.PI / 180; player.pitch = num('pitch', 0) * Math.PI / 180;
+const viewmodel = P.get('hands') === '0' ? null : new ViewModel(renderer.scene);
+const ctx = { world, player, renderer, camera: renderer.camera, viewmodel, game: {} };
+
+const rail = driveRail(ctx, {
+  origin: RAIL, palette: pal, length: 5000, maxSpeed: num('speed', 17), headlights: pal !== 'golden' || P.get('lights') === '1', hint: false,
+  onStart: (D) => {
+    D.place(roadSign('ASHGROVE  12', { w: 1.7, h: 0.42, P: PALETTES[pal] }), 28, 5.4);
+    const dr = deer(); dr.rotation.y = -Math.PI / 2; D.place(dr, 40, 3.2);
+  }
+});
+
+// ?nocar=1 hides the car and the cab, to see the road on its own
+if (P.get('nocar') === '1') setTimeout(() => { world.root.children.forEach(o => { if (o.userData?.isCar || o.children?.some(c => c.isSpotLight)) o.visible = false; }); }, 50);
+// ?drive=1 holds the accelerator down so the road moves and the actors come
+if (P.get('drive') === '1') { Input.enabled = true; Input.down.add('KeyW'); }
+if (P.has('steer')) { Input.enabled = true; Input.down.add(parseFloat(P.get('steer')) < 0 ? 'KeyA' : 'KeyD'); }
+const N = Math.round(num('frames', 90));
+let n = 0;
+function loop() {
+  const dt = 1 / 60;
+  player.update(dt, ctx);
+  world.update(dt, ctx);
+  world.updateLights(renderer.camera);
+  viewmodel?.update(dt, player, renderer.camera, { playing: true });
+  renderer.update(dt);
+  renderer.render();
+  n++;
+  if (n === N) {
+    window.__ready = true;
+    // under tools/capture.js: hand the frame back in the same tick it was drawn
+    if (P.get('capture') === '1') {
+      const carG = world.root.children.find(o => o.userData?.isCar && o.userData.refs);
+      const rimTop = carG ? carG.userData.refs.wheel.localToWorld(new THREE.Vector3(0, 0.19, 0)) : null;
+      const c = renderer.camera.position;
+      fetch('/log', { method: 'POST', body: `cam=${c.x.toFixed(2)},${c.y.toFixed(3)},${c.z.toFixed(2)} fov=${renderer.camera.fov} eye=${player.eye.toFixed(3)} pos.y=${player.pos.y.toFixed(3)} rimTop=${rimTop ? rimTop.x.toFixed(2) + ',' + rimTop.y.toFixed(3) + ',' + rimTop.z.toFixed(2) : '-'} car=${carG ? carG.position.x.toFixed(2) + ',' + carG.position.z.toFixed(2) : '-'}` });
+      const data = document.getElementById('viewport').toDataURL('image/png');
+      fetch('/save', { method: 'POST', body: data });
+      return;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+loop();
+</script>

@@ -1,11 +1,11 @@
 /* ============================================================
-   scares.js: the nineteen.
+   scares.js: the twenty-two.
 
    Doc §6 is a set of hard constraints, so they live here as
    code rather than as a promise:
      · max 1 per 12 min in Acts 1–2, 1 per 6 min in Act 3
      · never two of the same TYPE in a row
-     · exactly 3 of the 19 are false alarms
+     · exactly 4 of the 22 are false alarms
      · no sting on the best ones
      · never fire during a chore's difficult moment, only at
        the moment of completion or transition
@@ -27,9 +27,20 @@ export const TYPE = {
   GEOMETRY: 'geometry'        // the pews turn around
 };
 
+/** What the manifest has to add up to. The smoke test holds it to this. */
+export const EXPECT = { total: 22, falses: 4, contacts: 3 };
+
 /** The manifest. Every scare in the game is declared here. */
 export const MANIFEST = [
   // ---- Act 1–2 (one per 12 min) ----
+  // Chapter One used to have no horror in it at all. It still has no
+  // horror in it that Jared would call horror: a person at a treeline
+  // at dusk, a radiator, and somebody across the road at three in the
+  // morning, which in a town of eleven hundred is either nothing or is
+  // the whole story. None of them sting. Two of them are nothing.
+  { id: 'ch1.roadside',    ch: 1, type: TYPE.PRESENCE, sting: false, note: 'The drive in. Somebody at the treeline in a coat three sizes too big. Not in the mirror.' },
+  { id: 'ch1.radiator',    ch: 1, type: TYPE.AUDIO,    sting: false, false: true, note: '3:04 AM. The radiator knocks. You talk to it, it stops. She said.' },
+  { id: 'ch1.window',      ch: 1, type: TYPE.PRESENCE, sting: false, note: '3:06 AM. Under the streetlight across the road, looking up. The light flickers and nobody.' },
   { id: 'ch2.bedside',     ch: 2, type: TYPE.PRESENCE, sting: false, note: 'Oct 2, 3:02 AM. Sitting on the edge of the bed, in her coat, in boots.' },
   { id: 'ch2.coathook',    ch: 2, type: TYPE.ABSENCE,  sting: false, false: true, note: 'A coat on a hook.' },
   { id: 'ch2.photo',       ch: 2, type: TYPE.MEDIATED, sting: false, note: 'Oct 12. Her seat is empty and there is motion blur where she was.' },
@@ -109,12 +120,12 @@ class ScareDirector {
     return true;
   }
 
-  /** Count check for the build. 19 declared, 3 of them false. */
+  /** Count check for the build. 22 declared, 4 of them false, 3 Contact. */
   audit() {
     const total = MANIFEST.length;
     const falses = MANIFEST.filter(m => m.false).length;
     const contacts = MANIFEST.filter(m => m.type === TYPE.CONTACT).length;
-    return { total, falses, contacts, ok: total === 19 && falses === 3 && contacts === 3 };
+    return { total, falses, contacts, ok: total === EXPECT.total && falses === EXPECT.falses && contacts === EXPECT.contacts };
   }
 }
 

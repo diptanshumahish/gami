@@ -42,6 +42,9 @@ function showFatal(where, e) {
 addEventListener('error', e => showFatal('window', e.error || e.message));
 addEventListener('unhandledrejection', e => showFatal('promise', e.reason));
 
+const FRAME_CAP = 60;
+const FRAME_MIN_MS = 1000 / FRAME_CAP - 2;
+
 class Game {
   constructor() {
     this.canvas = document.getElementById('viewport');
@@ -87,7 +90,7 @@ class Game {
       // again. Which piece is playing is a scene question, never an
       // on/off question.
       audio.unlockMusic({ instant: true });
-      audio.musicScene(this.chapter ? this.chapter.id : 'menu');
+      audio.musicScene(audio.wantScene || (this.chapter ? this.chapter.id : 'menu'));
     };
     addEventListener('pointerdown', unlock, { once: true });
     addEventListener('keydown', unlock, { once: true });
@@ -274,6 +277,16 @@ class Game {
     }
     trace(`chapter ${i + 1}: build() begin`);
 
+    // The chapter is LIVE from here, not from when build() returns. A
+    // build() is allowed to await the player: Chapter One drives into
+    // town and walks him up the stair inside it, Chapter Two is five
+    // vignettes that each wait for him to arrive somewhere, Chapter Four
+    // is a drive. None of that can happen unless the player controller,
+    // the interactor and the scare clock are running while it waits.
+    // Chapters that build synchronously and return are unaffected: the
+    // screen is still black until the fade below.
+    this.mode = 'play';
+    UI.showHUD(true);
     try {
       await def.build(ctx);
     } catch (e) {
@@ -352,9 +365,29 @@ class Game {
   }
 
   // ------------------------------------------------------------ loop
+  /**
+   * A 120 Hz panel asks for twice as many frames as this game has any use
+   * for, and every one of them pays for the whole post stack: SSAO, five
+   * mips of bloom, and a sixteen-tap depth-of-field. Nothing here is
+   * animated finely enough to read the difference between 60 and 120, so
+   * the extra vblanks are let go by and the machine stops cooking.
+   *
+   * The slack matters. A 60 Hz panel delivers frames at 16.67 ms give or
+   * take a little jitter, and a hard 16.67 ms gate would reject every
+   * other one of those and halve the game to 30. Two milliseconds of
+   * grace lets a real 60 Hz frame through and still rejects the 8.33 ms
+   * half-frames of a 120 Hz one.
+   *
+   * Skipping is safe for input because mouse deltas ACCUMULATE
+   * (input.js) and look is applied without dt (player.js), so a longer
+   * gap turns into exactly the same rotation; and `pressed` is a set
+   * that is only cleared at the end of a frame that actually ran, so a
+   * key tapped inside a skipped window is still seen.
+   */
   loop() {
     requestAnimationFrame(() => this.loop());
     const now = performance.now();
+    if (now - this.last < FRAME_MIN_MS) return;
     let dt = (now - this.last) / 1000;
     this.last = now;
     if (dt > 0.1) dt = 0.1;
@@ -375,6 +408,10 @@ class Game {
         audio.setListener(this.renderer.camera);
       }
       this.world.update(dt, this.ctx || { world: this.world });
+      // Hand the pooled lights to whatever can be seen from here. Must
+      // come before renderer.update(), which decides what shadow maps to
+      // redraw and needs this frame's intensities to do it.
+      this.world.updateLights(this.renderer.camera);
     }
     this.renderer.update(dt);
     this.renderer.render();

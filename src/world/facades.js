@@ -38,8 +38,8 @@
    afford to be as detailed as it is.
    ============================================================ */
 import * as THREE from 'three';
-import { MAT, T, flat, tiled, tex } from './mat.js';
-import { BOX, CYL, PLN } from './world.js';
+import { MAT, T, flat, tiled, tex, mat } from './mat.js';
+import { SHAPE, BOX, CYL, PLN } from './world.js';
 
 /* mulberry32. The plain LCG this used to be gives nearly the same first
    few draws for nearby seeds, so four cars seeded 491/582/673/764 all
@@ -284,7 +284,7 @@ export function facadeSign(text, w, h, style = 'panel', seed = 1) {
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 4;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({
+  const m = new THREE.Mesh(SHAPE.Plane(w, h), new THREE.MeshStandardMaterial({
     map: t, roughness: .85,
     emissive: new THREE.Color(0xffffff), emissiveMap: t, emissiveIntensity: 0.16
   }));
@@ -361,7 +361,7 @@ const HEADS = ['flat', 'flat', 'segmental', 'round', 'keystone', 'segmental'];
 function blindWall(g, W, D, H, style, R) {
   const bm = bodyMat(style);
   const met = bm.userData.metres;
-  const body = new THREE.Mesh(new THREE.BoxGeometry(W, H, D), bm);
+  const body = new THREE.Mesh(SHAPE.Box(W, H, D), bm);
   body.userData.uv = [W / met, H / met];
   body.castShadow = false; body.receiveShadow = false;
   body.position.set(0, H / 2, D / 2);
@@ -412,7 +412,7 @@ function unit(g, u, night) {
   const ironM = flat(0x33322e, { rough: .7, metal: .35 });
 
   // ---- body ----------------------------------------------------------
-  add(new THREE.Mesh(new THREE.BoxGeometry(W, H, D), bm), W, H).position.set(0, H / 2, D / 2);
+  add(new THREE.Mesh(SHAPE.Box(W, H, D), bm), W, H).position.set(0, H / 2, D / 2);
 
   // ---- ground floor: piers, bulkhead, glass, transom -------------------
   const GF = u.gf;
@@ -546,6 +546,11 @@ function unit(g, u, night) {
   const bayW = W / wbays;
   const winW = Math.min(u.wide ? 1.35 : 1.05, bayW - 0.85), winH = u.tallWin ? 1.75 : 1.45;
   const headM = flat(new THREE.Color(u.trim).multiplyScalar(1.06).getHex(), { rough: .9 });
+  // sash paint: cream or white on most of the row, the trim colour on the
+  // ones that were done all of a piece
+  const frameM = flat(R() > 0.35 ? 0xd9d2c2 : new THREE.Color(u.trim).multiplyScalar(1.12).getHex(), { rough: .86 });
+  const blindM = flat(pick(R, [0xcfc6ae, 0xb8b09c, 0xdad3c2, 0x9a9488]), { rough: .95 });
+  const netM = flat(0xbdb6a8, { rough: .98 });
   for (let f = 1; f < u.floors; f++) {
     const fy = GF + 0.95 + (f - 1) * u.floorH;
     for (let b = 0; b < wbays; b++) {
@@ -559,6 +564,21 @@ function unit(g, u, night) {
       const w = add(new THREE.Mesh(PLN(winW, winH), gm));
       w.position.set(wx, fy + winH / 2, -0.055);
       w.rotation.y = Math.PI;
+      // The sash: a painted frame standing proud of the brick, the two
+      // stiles, the meeting rail across the middle, and the shadow the
+      // head throws down the top of the glass. A textured rectangle flush
+      // with the wall is a decal; a frame round it is a window.
+      put(winW + 0.14, 0.07, 0.10, wx, fy + winH + 0.015, -0.08, frameM);
+      put(winW + 0.14, 0.06, 0.10, wx, fy + 0.015, -0.08, frameM);
+      [-1, 1].forEach(s => put(0.07, winH + 0.08, 0.10, wx + s * (winW / 2 + 0.035), fy + winH / 2, -0.08, frameM));
+      put(winW + 0.02, 0.055, 0.075, wx, fy + winH * 0.52, -0.072, frameM);
+      put(0.045, winH * 0.52, 0.07, wx, fy + winH * 0.26, -0.07, frameM);
+      put(winW, 0.12, 0.012, wx, fy + winH - 0.06, -0.061, darkM);
+      // and, behind about a third of them, a blind pulled part way down,
+      // or a net curtain, which is how you can tell somebody lives there
+      const bl = R();
+      if (bl > 0.66) put(winW - 0.06, winH * (0.25 + R() * 0.35), 0.012, wx, fy + winH - (winH * (0.25 + R() * 0.35)) / 2 - 0.02, -0.0605, blindM);
+      else if (bl > 0.50) put(winW - 0.06, winH - 0.1, 0.012, wx, fy + winH / 2, -0.0605, netM);
       // the head. A lintel and a sill is the whole difference between a
       // window and a rectangle of paint, and WHICH head it is is the
       // difference between this building and the one next door.
@@ -636,7 +656,7 @@ function unit(g, u, night) {
   add(new THREE.Mesh(BOX(W - 0.2, 0.16, D - 0.3), roofM)).position.set(0, H - 0.08, D / 2);
   if (R() > 0.45) {
     const hh = 1.4 + R();
-    add(new THREE.Mesh(new THREE.BoxGeometry(0.7, hh, 0.7), bm), 0.7, hh)
+    add(new THREE.Mesh(SHAPE.Box(0.7, hh, 0.7), bm), 0.7, hh)
       .position.set((R() - 0.5) * W * 0.6, H + hh / 2 - 0.1, D * (0.35 + R() * 0.4));
   }
   if (R() > 0.55) {
@@ -655,7 +675,7 @@ function unit(g, u, night) {
     const tx = (R() - 0.5) * W * 0.4, tz = D * 0.55;
     add(new THREE.Mesh(CYL(0.85, 0.85, 1.7, 10), flat(0x4a3f33, { rough: .98 })))
       .position.set(tx, parapetTop + 1.5, tz);
-    add(new THREE.Mesh(new THREE.ConeGeometry(0.95, 0.4, 10), roofM))
+    add(new THREE.Mesh(SHAPE.Cone(0.95, 0.4, 10), roofM))
       .position.set(tx, parapetTop + 2.55, tz);
     [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) =>
       add(new THREE.Mesh(CYL(0.05, 0.05, 1.3, 4), ironM))
@@ -782,7 +802,7 @@ function ghostSign(text, w, h, seed) {
   x.globalCompositeOperation = 'source-over';
   const t = new THREE.CanvasTexture(c);
   t.colorSpace = THREE.SRGBColorSpace;
-  const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshStandardMaterial({
+  const m = new THREE.Mesh(SHAPE.Plane(w, h), new THREE.MeshStandardMaterial({
     map: t, transparent: true, opacity: 0.5, roughness: 1, depthWrite: false
   }));
   m.castShadow = false; m.receiveShadow = false;
@@ -1109,7 +1129,7 @@ export function buildBackdrop(world, {
   // could ever reach it.
   const gm = snow ? tiled(MAT.snow, 400, 400) : flat(ground, { rough: 1 });
   if (snow) gm.userData.own = true;
-  const plane = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), gm);
+  const plane = new THREE.Mesh(SHAPE.Plane(400, 400), gm);
   plane.rotation.x = -Math.PI / 2;
   plane.position.y = -0.06;
   plane.castShadow = false; plane.receiveShadow = false;
@@ -1132,7 +1152,7 @@ export function buildBackdrop(world, {
   };
   // a flat rectangle on the road: `len` along the street, `wid` across it
   const slab = (len, wid, u, v, yy, mat) => {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(len, wid), mat);
+    const m = new THREE.Mesh(SHAPE.Plane(len, wid), mat);
     m.rotation.x = -Math.PI / 2;
     return put(m, u, v, yy);
   };
@@ -1352,7 +1372,7 @@ export function buildBackdrop(world, {
   g.add(spire);
   const nave = new THREE.Mesh(BOX(9, 9, 16), roofM); nave.position.y = 4.5; spire.add(nave);
   const tower = new THREE.Mesh(BOX(5, 20, 5), roofM); tower.position.set(0, 10, 9); spire.add(tower);
-  const cone = new THREE.Mesh(new THREE.ConeGeometry(3.6, 11, 4), roofM);
+  const cone = new THREE.Mesh(SHAPE.Cone(3.6, 11, 4), roofM);
   cone.position.set(0, 25.5, 9); cone.rotation.y = Math.PI / 4; spire.add(cone);
   const cross = new THREE.Mesh(BOX(0.3, 2.2, 0.3), roofM);
   cross.position.set(0, 32, 9); spire.add(cross);
@@ -1373,7 +1393,7 @@ export function buildBackdrop(world, {
       // spruces used to stand in the road at a hundred metres, dead on the
       // vanishing point, which is precisely where you cannot miss them.
       if (Math.abs(tx * Math.sin(axis) + tz * Math.cos(axis) - road.z) < corridor - 8) continue;
-      const t = new THREE.Mesh(new THREE.ConeGeometry(2.0 + R() * 1.8, 9 + R() * 9, 5), treeM);
+      const t = new THREE.Mesh(SHAPE.Cone(2.0 + R() * 1.8, 9 + R() * 9, 5), treeM);
       t.position.set(tx, 4 + R() * 3, tz);
       t.castShadow = false; t.receiveShadow = false;
       g.add(t);
@@ -1456,7 +1476,40 @@ export function utilityPole(world, x, y, z, {
    buildings beside it and eighty years of small municipal decisions
    standing on the pavement in between. Ridge Road had a bin, a news box
    and one parked car on eleven metres of concrete, and eleven metres of
-   empty concrete is what a car park looks like. */
+   empty concrete is what a car park looks like.
+
+   Everything on the pavement is built the same way: a handful of boxes
+   and cylinders, a texture that has weather in it, and one or two of
+   the details that a person who has walked past the real thing every
+   day would notice were missing. A mailbox is a blue box; a mailbox
+   with a rounded top, a pull-down chute and a sticker is the mailbox. */
+
+/* The materials the pavement shares. Painted steel is one texture and
+   a tint, which is how the town can afford a different colour on every
+   piece of furniture without a new texture for each. */
+const PROP = {
+  bark: () => mat('bark', T.bark, { roughness: .98, normalStrength: 2.4, normalScale: .9 }),
+  steel: () => mat('steelribbed', T.steelribbed, { roughness: .62, metalness: .35, normalStrength: 2.0, normalScale: .8 }),
+  enamel: (color) => mat('enamel', T.enamel, { color, roughness: .46, metalness: .18, normalStrength: 1.0, normalScale: .35 }),
+  iron: () => flat(0x2c2e30, { rough: .6, metal: .4 }),
+  slat: () => mat('woodfloor', T.woodfloor, { color: 0x9a7b5c, roughness: .86, normalStrength: 1.6 }),
+  news: () => mat('newsfront', T.newsfront, { roughness: .9, normal: false }),
+  foliage: (season, tint = 0xffffff) => shared('fol|' + season + '|' + tint, () => new THREE.MeshStandardMaterial({
+    map: T.foliage(season), color: tint, roughness: 1, metalness: 0,
+    alphaTest: 0.45, side: THREE.DoubleSide
+  })),
+  twigs: () => shared('twigs', () => new THREE.MeshStandardMaterial({
+    map: T.twigs(), roughness: 1, metalness: 0, alphaTest: 0.4, side: THREE.DoubleSide
+  }))
+};
+
+/** A mesh that tiles a textured material at world scale when merged. */
+function tiledMesh(geoObj, m, w, h) {
+  const met = m.userData.metres || 1;
+  const mesh = new THREE.Mesh(geoObj, m);
+  mesh.userData.uv = [w / met, h / met];
+  return mesh;
+}
 
 /**
  * A shade tree in a pavement grate. A street tree is not a green ball on
@@ -1464,67 +1517,101 @@ export function utilityPole(world, x, y, z, {
  * limbs going out and up, and a canopy that is WIDER than it is tall with
  * a ragged underside you can see the sky through.
  *
- * The canopy is built from flattened icosahedra in four tones, darkest
- * underneath, which is the cheapest thing that reads as depth in foliage.
+ * The canopy is clumps of leaf cards crossed at the end of every limb,
+ * the way every game since about 1999 has drawn a tree, because it is
+ * the cheapest thing that has an edge you can see sky through. Eleven
+ * icosahedra painted four greens read as a hedge that had been lifted
+ * onto a pole.
  */
-export function streetTree(parent, x, y, z, seed = 1, { winter = false, snow = false } = {}) {
+export function streetTree(parent, x, y, z, seed = 1, { winter = false, snow = false, autumn = false } = {}) {
   const R = rng(seed);
   const g = new THREE.Group();
   g.position.set(x, y, z);
   g.rotation.y = R() * Math.PI * 2;
   parent.add(g);
-  const bark = flat(0x453a2f, { rough: .98 });
-  const barkDark = flat(0x2e2720, { rough: 1 });
-  const LEAF = winter
-    ? [0x4a3d2c, 0x3d3327, 0x574733]
-    : [0x39442c, 0x424e33, 0x2d3623, 0x4a5639];
+  const bark = PROP.bark();
   const put = (m) => { m.castShadow = false; m.receiveShadow = false; g.add(m); return m; };
 
   // the grate, and the ring of granite setts round it
   put(new THREE.Mesh(BOX(1.5, 0.06, 1.5), flat(0x2a2b2d, { rough: .7, metal: .4 }))).position.y = 0.03;
   put(new THREE.Mesh(BOX(1.7, 0.1, 1.7), flat(0x6d6a63, { rough: .95 }))).position.y = 0.02;
+  // the bars of the grate
+  for (let i = -2; i <= 2; i++) {
+    put(new THREE.Mesh(BOX(1.4, 0.02, 0.05), flat(0x1e1f21, { rough: .6, metal: .5 }))).position.set(0, 0.07, i * 0.25);
+  }
 
-  // trunk: three stacked tapers with a slight lean, so it is not a pipe
-  const th = 2.5 + R() * 0.8;
-  let py = 0, r0 = 0.16 + R() * 0.04;
+  // trunk: three stacked tapers with a slight lean, so it is not a pipe,
+  // and a flare at the root
+  const th = 2.6 + R() * 0.8;
+  let py = 0, r0 = 0.17 + R() * 0.04;
   const lean = (R() - 0.5) * 0.09;
+  put(tiledMesh(CYL(r0 * 1.05, r0 * 1.5, 0.3, 9), bark, 1.2, 0.3)).position.y = 0.15;
   for (let i = 0; i < 3; i++) {
     const seg = th / 3, r1 = r0 * 0.82;
-    const t = put(new THREE.Mesh(CYL(r1, r0, seg + 0.04, 8), i ? bark : barkDark));
+    const t = put(tiledMesh(CYL(r1, r0, seg + 0.04, 9), bark, 1.0, seg));
     t.position.set(lean * py * 0.5, py + seg / 2, 0);
     t.rotation.z = -lean;
     py += seg; r0 = r1;
   }
 
-  // the fork: four limbs out and up
-  const limbs = 4;
+  // the fork: four or five limbs out and up, and a twig or two off each
+  const limbs = 4 + (R() > 0.6 ? 1 : 0);
+  const tips = [];
   for (let i = 0; i < limbs; i++) {
     const a = (i / limbs) * Math.PI * 2 + R() * 0.6;
-    const len = 1.5 + R() * 0.9;
-    const lb = put(new THREE.Mesh(CYL(0.035, 0.085, len, 6), bark));
+    const len = 1.6 + R() * 1.0;
+    const lb = put(tiledMesh(CYL(0.035, 0.09, len, 6), bark, 0.5, len));
     const tilt = 0.55 + R() * 0.3;
     lb.position.set(Math.cos(a) * len * 0.34, th + len * 0.36, Math.sin(a) * len * 0.34);
     lb.rotation.set(Math.sin(a) * tilt, 0, -Math.cos(a) * tilt);
+    const tip = new THREE.Vector3(Math.cos(a) * len * 0.72, th + len * 0.74, Math.sin(a) * len * 0.72);
+    tips.push(tip);
+    // a secondary, thinner, off the limb
+    const a2 = a + (R() - 0.5) * 1.2, len2 = 0.8 + R() * 0.6;
+    const tw = put(tiledMesh(CYL(0.02, 0.045, len2, 5), bark, 0.3, len2));
+    tw.position.set(tip.x + Math.cos(a2) * len2 * 0.3, tip.y + len2 * 0.3, tip.z + Math.sin(a2) * len2 * 0.3);
+    tw.rotation.set(Math.sin(a2) * 0.8, 0, -Math.cos(a2) * 0.8);
   }
 
   if (!winter) {
-    // canopy: wider than tall, flattened, and darkest at the bottom
-    const CW = 2.3 + R() * 0.9;
-    for (let i = 0; i < 11; i++) {
-      const up = i / 11;
-      const r = (0.75 + R() * 0.6) * (1 - up * 0.35);
-      const c = put(new THREE.Mesh(new THREE.IcosahedronGeometry(r, 1),
-        flat(LEAF[up < 0.4 ? (R() > 0.5 ? 2 : 0) : Math.floor(R() * LEAF.length)], { rough: 1 })));
-      const a = R() * Math.PI * 2, rad = R() * CW * (1 - up * 0.5);
-      c.position.set(Math.cos(a) * rad, th + 0.55 + up * 1.9 + R() * 0.3, Math.sin(a) * rad);
-      c.scale.set(1.15, 0.72, 1.15);
-      c.rotation.set(R() * 3, R() * 3, R() * 3);
+    // canopy: a clump of crossed cards at every limb end, one in the
+    // middle, and a couple hung lower where the limbs start. Wider than
+    // tall; darker cards underneath.
+    const season = autumn ? 'autumn' : 'summer';
+    const fm = [PROP.foliage(season, 0xffffff), PROP.foliage(season, 0xd8d4c4), PROP.foliage(season, 0xb8b4a8)];
+    const clump = (cx, cy, cz, size, dark) => {
+      const n = 3;
+      for (let k = 0; k < n; k++) {
+        const s = size * (0.85 + R() * 0.3);
+        const c = put(new THREE.Mesh(PLN(s, s), fm[dark ? 2 : Math.floor(R() * 2)]));
+        c.position.set(cx + (R() - 0.5) * 0.3, cy + (R() - 0.5) * 0.3, cz + (R() - 0.5) * 0.3);
+        c.rotation.set((R() - 0.5) * 0.5, (k / n) * Math.PI + R() * 0.4, (R() - 0.5) * 0.3);
+      }
+      // one flat card on top, so the canopy has a crown seen from the landing
+      const top = put(new THREE.Mesh(PLN(size * 1.1, size * 1.1), fm[Math.floor(R() * 2)]));
+      top.position.set(cx, cy + size * 0.2, cz);
+      top.rotation.set(-Math.PI / 2 + (R() - 0.5) * 0.5, R() * 3, 0);
+    };
+    tips.forEach(t => clump(t.x * 1.15, t.y + 0.25, t.z * 1.15, 2.0 + R() * 0.7, false));
+    clump(0, th + 1.6, 0, 2.4 + R() * 0.5, false);
+    for (let i = 0; i < 3; i++) {
+      const a = R() * Math.PI * 2, rad = 0.9 + R() * 0.8;
+      clump(Math.cos(a) * rad, th + 0.35 + R() * 0.4, Math.sin(a) * rad, 1.6 + R() * 0.5, true);
     }
-  } else if (snow) {
-    for (let i = 0; i < 5; i++) {
-      const c = put(new THREE.Mesh(new THREE.IcosahedronGeometry(0.3 + R() * 0.2, 0), flat(0xc6d2de, { rough: .85 })));
-      c.position.set((R() - 0.5) * 2.4, th + 0.9 + R() * 1.4, (R() - 0.5) * 2.4);
-      c.scale.y = 0.5;
+  } else {
+    // bare: four big twig cards crossed through the crown, and the snow
+    // on the limbs if it is snowing
+    const tm = PROP.twigs();
+    for (let k = 0; k < 4; k++) {
+      const c = put(new THREE.Mesh(PLN(3.6, 3.2), tm));
+      c.position.set((R() - 0.5) * 0.4, th + 1.7, (R() - 0.5) * 0.4);
+      c.rotation.set(0, (k / 4) * Math.PI + R() * 0.3, 0);
+    }
+    if (snow) {
+      tips.forEach(t => {
+        const c = put(new THREE.Mesh(SHAPE.Sphere(0.16, 6, 4), flat(0xc6d2de, { rough: .85 })));
+        c.position.set(t.x, t.y + 0.05, t.z); c.scale.set(1.6, 0.5, 1.0);
+      });
     }
   }
   mergeByMaterial(g);
@@ -1536,12 +1623,29 @@ export function parkingMeter(parent, x, y, z, rot = 0) {
   const g = new THREE.Group();
   g.position.set(x, y, z); g.rotation.y = rot;
   parent.add(g);
-  const body = flat(0x4a5a52, { rough: .55, metal: .3 });
-  const put = (m) => { m.castShadow = false; m.receiveShadow = false; g.add(m); return m; };
-  put(new THREE.Mesh(CYL(0.045, 0.055, 1.15, 8), body)).position.y = 0.575;
-  put(new THREE.Mesh(BOX(0.17, 0.3, 0.13), body)).position.y = 1.28;
-  const face = put(new THREE.Mesh(PLN(0.11, 0.14), flat(0xd8d3c4, { rough: .5 })));
-  face.position.set(0, 1.31, 0.068);
+  const body = PROP.enamel(0x6f7470);
+  const pole = PROP.enamel(0x5a5e5a);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  // base flange, pole, collar
+  put(tiledMesh(CYL(0.08, 0.11, 0.05, 10), pole, 0.6, 0.05)).position.y = 0.025;
+  put(tiledMesh(CYL(0.034, 0.04, 1.12, 9), pole, 0.25, 1.12)).position.y = 0.6;
+  put(tiledMesh(CYL(0.05, 0.045, 0.05, 9), pole, 0.3, 0.05)).position.y = 1.15;
+  // the head: a box with a domed crown and a glazed face
+  put(tiledMesh(BOX(0.17, 0.30, 0.13), body, 0.5, 0.5)).position.y = 1.32;
+  const dome = put(tiledMesh(CYL(0.085, 0.085, 0.13, 10), body, 0.5, 0.5));
+  dome.rotation.x = Math.PI / 2; dome.position.y = 1.47;
+  // the window: dark glass with the dial behind it
+  const glass = put(new THREE.Mesh(PLN(0.12, 0.15), flat(0x1c2024, { rough: .18 })));
+  glass.position.set(0, 1.33, 0.067);
+  const dial = put(new THREE.Mesh(PLN(0.09, 0.06), flat(0xd8d3c4, { rough: .5 })));
+  dial.position.set(0, 1.35, 0.069);
+  const flag = put(new THREE.Mesh(PLN(0.04, 0.05), flat(0xb8332a, { rough: .5, emissive: 0x3a0c08, ei: .6 })));
+  flag.position.set(0.02, 1.33, 0.0695);
+  // coin slot, and the handle you turn
+  put(new THREE.Mesh(BOX(0.03, 0.012, 0.01), flat(0x111111, { rough: .6 }))).position.set(0, 1.25, 0.067);
+  const knob = put(new THREE.Mesh(CYL(0.014, 0.014, 0.05, 8), PROP.iron()));
+  knob.rotation.x = Math.PI / 2; knob.position.set(0.045, 1.22, 0.085);
+  put(new THREE.Mesh(BOX(0.05, 0.012, 0.012), PROP.iron())).position.set(0.045, 1.22, 0.11);
   mergeByMaterial(g);
   return g;
 }
@@ -1551,15 +1655,164 @@ export function bench(parent, x, y, z, rot = 0) {
   const g = new THREE.Group();
   g.position.set(x, y, z); g.rotation.y = rot;
   parent.add(g);
-  const wood = flat(0x5a4531, { rough: .9 });
-  const iron = flat(0x2c2e30, { rough: .6, metal: .4 });
-  const put = (m) => { m.castShadow = false; m.receiveShadow = false; g.add(m); return m; };
-  for (let i = 0; i < 4; i++) put(new THREE.Mesh(BOX(1.8, 0.05, 0.11), wood)).position.set(0, 0.45, -0.2 + i * 0.13);
-  for (let i = 0; i < 3; i++) put(new THREE.Mesh(BOX(1.8, 0.11, 0.05), wood)).position.set(0, 0.62 + i * 0.14, 0.26);
+  const wood = PROP.slat();
+  const iron = PROP.enamel(0x2e3032);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  // seat slats, with a gap between them and one at the back that split
+  // in 2009 and was taken away
+  for (let i = 0; i < 4; i++) {
+    put(tiledMesh(BOX(1.8, 0.045, 0.10), wood, 1.8, 0.1)).position.set(0, 0.45, -0.19 + i * 0.125);
+  }
+  for (let i = 0; i < 3; i++) {
+    if (i === 1) continue;
+    const s = put(tiledMesh(BOX(1.8, 0.10, 0.04), wood, 1.8, 0.1));
+    s.position.set(0, 0.66 + i * 0.135, 0.255 + i * 0.02);
+    s.rotation.x = -0.12;
+  }
+  // cast iron ends: a foot, a leg, the seat rail, the back upright, an
+  // arm rest and the scroll under it
   [-1, 1].forEach(sd => {
-    put(new THREE.Mesh(BOX(0.06, 0.45, 0.06), iron)).position.set(sd * 0.8, 0.22, -0.15);
-    put(new THREE.Mesh(BOX(0.06, 0.9, 0.06), iron)).position.set(sd * 0.8, 0.45, 0.26);
+    const ex = sd * 0.82;
+    put(tiledMesh(BOX(0.07, 0.05, 0.62), iron, 0.6, 0.05)).position.set(ex, 0.025, 0.02);
+    put(tiledMesh(BOX(0.06, 0.40, 0.06), iron, 0.1, 0.4)).position.set(ex, 0.22, -0.17);
+    put(tiledMesh(BOX(0.06, 0.40, 0.06), iron, 0.1, 0.4)).position.set(ex, 0.22, 0.20);
+    put(tiledMesh(BOX(0.07, 0.05, 0.52), iron, 0.5, 0.05)).position.set(ex, 0.43, 0.03);
+    const back = put(tiledMesh(BOX(0.06, 0.62, 0.06), iron, 0.1, 0.6));
+    back.position.set(ex, 0.74, 0.27); back.rotation.x = -0.12;
+    put(tiledMesh(BOX(0.06, 0.05, 0.42), iron, 0.4, 0.05)).position.set(ex, 0.68, 0.04);
+    put(tiledMesh(BOX(0.06, 0.24, 0.06), iron, 0.1, 0.24)).position.set(ex, 0.56, -0.14);
   });
+  // the bolts into the slab
+  [-1, 1].forEach(sd => put(new THREE.Mesh(CYL(0.02, 0.02, 0.03, 6), PROP.iron())).position.set(sd * 0.82, 0.05, -0.2));
+  mergeByMaterial(g);
+  return g;
+}
+
+/** A municipal litter bin: rolled ribbed steel, a domed lid with a flap,
+    a liner showing at the rim, and the things people missed with. */
+export function litterBin(parent, x, y, z, rot = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.rotation.y = rot;
+  parent.add(g);
+  const steel = PROP.steel();
+  const lidM = PROP.enamel(0x4a5248);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  put(tiledMesh(CYL(0.30, 0.27, 0.84, 16), steel, 1.85, 0.84)).position.y = 0.42;
+  // the rolled rim and the base band
+  put(tiledMesh(CYL(0.315, 0.315, 0.04, 16), lidM, 2.0, 0.04)).position.y = 0.86;
+  put(tiledMesh(CYL(0.285, 0.285, 0.05, 16), lidM, 1.8, 0.05)).position.y = 0.025;
+  // a domed lid with the opening in the side of it
+  const dome = put(tiledMesh(SHAPE.Sphere(0.31, 14, 8, 0, Math.PI * 2, 0, Math.PI / 2), lidM, 2.0, 1.0));
+  dome.position.y = 0.86; dome.scale.set(1, 0.62, 1);
+  put(new THREE.Mesh(BOX(0.26, 0.12, 0.04), flat(0x0b0c0c, { rough: .9 }))).position.set(0, 0.95, 0.29);
+  put(new THREE.Mesh(BOX(0.30, 0.03, 0.06), lidM)).position.set(0, 1.02, 0.30);
+  // the black liner pinched over the rim
+  put(new THREE.Mesh(CYL(0.32, 0.31, 0.025, 16), flat(0x101010, { rough: .5 }))).position.y = 0.885;
+  // a can that missed and a wrapper, on the slab
+  const can = put(new THREE.Mesh(CYL(0.033, 0.033, 0.12, 10), flat(0xb03028, { rough: .35, metal: .3 })));
+  can.rotation.z = Math.PI / 2; can.position.set(0.42, 0.033, 0.18); can.rotation.y = 0.8;
+  const wrap = put(new THREE.Mesh(PLN(0.14, 0.1), flat(0xd8d2bc, { rough: .95, side: THREE.DoubleSide })));
+  wrap.rotation.x = -Math.PI / 2; wrap.rotation.z = 0.5; wrap.position.set(-0.38, 0.004, 0.30);
+  mergeByMaterial(g);
+  return g;
+}
+
+/** A collection box: the one blue thing on Ridge Road. Rounded top, a
+    pull-down chute on the front, four legs, and the sticker that tells
+    you the last pickup was 4:30. */
+export function mailbox(parent, x, y, z, rot = 0) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.rotation.y = rot;
+  parent.add(g);
+  const blue = PROP.enamel(0x35578c);
+  const dark = PROP.enamel(0x23395c);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  const W = 0.62, D = 0.50;
+  // legs, and the bar between the back pair
+  [[-1, -1], [1, -1], [-1, 1], [1, 1]].forEach(([sx, sz]) =>
+    put(tiledMesh(BOX(0.05, 0.40, 0.05), dark, 0.1, 0.4)).position.set(sx * (W / 2 - 0.05), 0.20, sz * (D / 2 - 0.05)));
+  put(tiledMesh(BOX(W - 0.1, 0.04, 0.04), dark, 0.5, 0.05)).position.set(0, 0.12, -(D / 2 - 0.05));
+  // the body, and the rounded top: a cylinder lying across it
+  put(tiledMesh(BOX(W, 0.72, D), blue, 0.62, 0.72)).position.y = 0.40 + 0.36;
+  const top = put(tiledMesh(CYL(D / 2, D / 2, W, 16), blue, 0.8, 0.62));
+  top.rotation.z = Math.PI / 2; top.position.y = 1.12;
+  // the chute: a hinged flap set into the front under the curve, with
+  // its pull handle
+  put(tiledMesh(BOX(0.42, 0.24, 0.04), dark, 0.42, 0.24)).position.set(0, 1.02, D / 2 + 0.01);
+  put(new THREE.Mesh(BOX(0.42, 0.03, 0.06), flat(0x1a2a44, { rough: .5, metal: .3 }))).position.set(0, 1.14, D / 2 + 0.03);
+  put(new THREE.Mesh(BOX(0.30, 0.025, 0.05), flat(0x9a9ea2, { rough: .4, metal: .4 }))).position.set(0, 0.91, D / 2 + 0.04);
+  // the sticker panel and the eagle-ish plate, which is white on a box
+  // that nothing else on the street is white on
+  const lab = facadeSign('U.S. MAIL', 0.40, 0.13, 'vinyl', 5);
+  lab.position.set(0, 0.72, D / 2 + 0.012); g.add(lab);
+  const lab2 = facadeSign('COLLECTION  MON-SAT 4:30', 0.44, 0.09, 'vinyl', 9);
+  lab2.position.set(0, 0.56, D / 2 + 0.012); g.add(lab2);
+  // the lock plate on the back door
+  put(new THREE.Mesh(BOX(0.10, 0.12, 0.01), flat(0x9a9ea2, { rough: .4, metal: .5 }))).position.set(0.15, 0.86, -(D / 2 + 0.006));
+  mergeByMaterial(g);
+  return g;
+}
+
+/** A newspaper honor box. The Herald, red, on a pedestal, with the
+    front page behind the window and a coin mechanism nobody has fed
+    since the nineties. */
+export function newsBox(parent, x, y, z, rot = 0, { color = 0x9c3028 } = {}) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.rotation.y = rot;
+  parent.add(g);
+  const body = PROP.enamel(color);
+  const dark = PROP.enamel(0x2b2b2c);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  // pedestal, then the cabinet
+  put(tiledMesh(BOX(0.30, 0.52, 0.26), dark, 0.3, 0.52)).position.y = 0.26;
+  put(tiledMesh(BOX(0.44, 0.56, 0.38), body, 0.44, 0.56)).position.y = 0.52 + 0.28;
+  put(tiledMesh(BOX(0.46, 0.05, 0.40), body, 0.46, 0.4)).position.y = 1.105;
+  // the window: a frame, the paper behind the glass, and the glass,
+  // which is dirty enough that you can still tell it is there
+  put(new THREE.Mesh(BOX(0.40, 0.42, 0.02), flat(0x1c1c1c, { rough: .8 }))).position.set(0, 0.83, 0.19);
+  const paper = put(new THREE.Mesh(PLN(0.32, 0.36), PROP.news()));
+  paper.position.set(0, 0.83, 0.201);
+  const glass = put(new THREE.Mesh(PLN(0.36, 0.38), flat(0x9aa4aa, { rough: .1, transparent: true, opacity: .22 })));
+  glass.position.set(0, 0.83, 0.205); glass.userData.noMerge = true;
+  // the coin mechanism, the handle, the tray lip
+  put(tiledMesh(BOX(0.12, 0.10, 0.05), dark, 0.12, 0.1)).position.set(0.14, 1.02, 0.20);
+  put(new THREE.Mesh(BOX(0.02, 0.03, 0.01), flat(0x0a0a0a, { rough: .6 }))).position.set(0.14, 1.04, 0.226);
+  put(new THREE.Mesh(BOX(0.30, 0.025, 0.04), flat(0x9a9ea2, { rough: .4, metal: .4 }))).position.set(0, 0.60, 0.21);
+  const lab = facadeSign('HERALD', 0.30, 0.10, 'box', 3);
+  lab.position.set(0, 0.56, 0.192); g.add(lab);
+  mergeByMaterial(g);
+  return g;
+}
+
+/** A fire hydrant. Barrel, bonnet, two side caps and the pumper nozzle,
+    and the chain off the cap that nobody has ever seen attached. */
+export function hydrant(parent, x, y, z, rot = 0, { color = 0x9e2c22 } = {}) {
+  const g = new THREE.Group();
+  g.position.set(x, y, z); g.rotation.y = rot;
+  parent.add(g);
+  const red = PROP.enamel(color);
+  const cap = PROP.enamel(0xb4b2a8);
+  const put = (m) => { m.castShadow = true; m.receiveShadow = false; g.add(m); return m; };
+  put(tiledMesh(CYL(0.17, 0.19, 0.06, 12), red, 1.1, 0.06)).position.y = 0.03;
+  put(tiledMesh(CYL(0.125, 0.145, 0.58, 12), red, 0.85, 0.58)).position.y = 0.06 + 0.29;
+  put(tiledMesh(CYL(0.16, 0.14, 0.05, 12), red, 1.0, 0.05)).position.y = 0.66;
+  put(tiledMesh(CYL(0.14, 0.15, 0.14, 12), cap, 0.9, 0.14)).position.y = 0.75;
+  put(tiledMesh(CYL(0.02, 0.12, 0.12, 12), cap, 0.6, 0.12)).position.y = 0.88;
+  put(new THREE.Mesh(SHAPE.Cylinder(0.03, 0.03, 0.06, 5), cap)).position.y = 0.95;
+  // the two side outlets and the big one on the front
+  [-1, 1].forEach(sx => {
+    const n = put(tiledMesh(CYL(0.065, 0.06, 0.10, 10), red, 0.4, 0.1));
+    n.rotation.z = Math.PI / 2; n.position.set(sx * 0.17, 0.46, 0);
+    const c = put(new THREE.Mesh(CYL(0.07, 0.07, 0.03, 10), cap));
+    c.rotation.z = Math.PI / 2; c.position.set(sx * 0.235, 0.46, 0);
+  });
+  const pm = put(tiledMesh(CYL(0.085, 0.08, 0.12, 10), red, 0.5, 0.12));
+  pm.rotation.x = Math.PI / 2; pm.position.set(0, 0.40, 0.18);
+  const pc = put(new THREE.Mesh(CYL(0.09, 0.09, 0.03, 10), cap));
+  pc.rotation.x = Math.PI / 2; pc.position.set(0, 0.40, 0.255);
+  // the chain, hanging in a loop off the front cap
+  const ch = put(new THREE.Mesh(SHAPE.Torus(0.07, 0.008, 5, 12), PROP.iron()));
+  ch.position.set(0.0, 0.33, 0.22); ch.rotation.x = 0.3;
   mergeByMaterial(g);
   return g;
 }
@@ -1609,22 +1862,26 @@ export function carBody(parent, x, y, z, rot = 0, seed = 1, {
 
   const k = R();
   const kind = type || (k > 0.88 ? 'van' : k > 0.74 ? 'pickup' : k > 0.56 ? 'wagon' : k > 0.44 ? 'coupe' : 'sedan');
-  const T = CAR_TYPES[kind];
-  const L = T.L, W = T.W, belt = T.belt, roofY = T.roof;
+  const CT = CAR_TYPES[kind];
+  const L = CT.L, W = CT.W, belt = CT.belt, roofY = CT.roof;
 
   // Metalness with no environment map is BLACK. There is no envmap in this
   // game, so every car painted at metalness 0.5 came out a silhouette with
   // wheels. Car paint here is a clearcoat cheat: low metalness, low
   // roughness, and the colour does the work.
   const col = CAR_PAINT[Math.floor(R() * CAR_PAINT.length)];
-  const paint = flat(col, { rough: .34, metal: .08 });
+  // the sides carry the road on them: one near-white grime texture,
+  // tinted with the paint, so every colour gets the same dirt along the
+  // sill for the price of one canvas
+  const paint = mat('carside', T.carside, { color: col, roughness: .36, metalness: .08, normal: false });
+  const clean = flat(col, { rough: .34, metal: .08 });
   const shade = flat(new THREE.Color(col).multiplyScalar(0.84).getHex(), { rough: .40, metal: .06 });
   const glassM = flat(0x2b3540, { rough: .12, metal: .0 });
   const trimM = flat(0x26292c, { rough: .85 });
   const chrome = flat(0xb0b5b8, { rough: .35, metal: .12 });
   const put = (m) => { m.castShadow = false; m.receiveShadow = false; g.add(m); return m; };
   const box = (w, h, d, px, py, pz, mat, rx = 0) => {
-    const m = put(new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat));
+    const m = put(new THREE.Mesh(SHAPE.Box(w, h, d), mat));
     m.position.set(px, py, pz); if (rx) m.rotation.x = rx;
     return m;
   };
@@ -1646,7 +1903,7 @@ export function carBody(parent, x, y, z, rot = 0, seed = 1, {
 
   // bonnet and boot: a shallow step down from the wings, ahead of and
   // behind the cabin. A flat deck the whole length is a bench.
-  const cabD = L * T.cab, cabZ = L * T.cabZ;
+  const cabD = L * CT.cab, cabZ = L * CT.cabZ;
   const noseZ = cabZ + cabD / 2 + 0.42, tailZ = cabZ - cabD / 2 - 0.36;
   const noseLen = Math.max(0.5, L / 2 - noseZ + 0.42);
   const tailLen = Math.max(0.4, tailZ + L / 2 - 0.36);
@@ -1675,17 +1932,17 @@ export function carBody(parent, x, y, z, rot = 0, seed = 1, {
       cabZ + dz + sgn * run / 2, mat, sgn * Math.atan2(glassH, run));
   };
   box(W - 0.19, glassH, cabD, 0, belt + glassH / 2 + 0.01, cabZ, glassM);
-  box(W - 0.27, 0.07, cabD + 0.04, 0, roofY - 0.03, cabZ, paint);            // the roof
+  box(W - 0.27, 0.07, cabD + 0.04, 0, roofY - 0.03, cabZ, clean);            // the roof
   // A, B and C pillars, not one continuous rail: what makes a greenhouse
   // read is the DARK between the uprights, and a rail down each side
   // paints the windows out.
   [1, -1].forEach(sx => {
     [cabD / 2 - 0.05, cabD * (kind === 'coupe' ? 0.06 : 0.10), -cabD / 2 + 0.05].forEach(pz =>
-      box(0.075, glassH, 0.10, sx * (W / 2 - 0.10), belt + glassH / 2 + 0.01, cabZ + pz, paint));
-    box(0.055, 0.05, cabD + 0.02, sx * (W / 2 - 0.105), roofY - 0.09, cabZ, paint);   // drip rail
+      box(0.075, glassH, 0.10, sx * (W / 2 - 0.10), belt + glassH / 2 + 0.01, cabZ + pz, clean));
+    box(0.055, 0.05, cabD + 0.02, sx * (W / 2 - 0.105), roofY - 0.09, cabZ, clean);   // drip rail
   });
-  rake(cabD / 2, glassH * 1.15, paint);
-  if (kind === 'sedan' || kind === 'coupe') rake(-cabD / 2, glassH * 0.95, paint);
+  rake(cabD / 2, glassH * 1.15, clean);
+  if (kind === 'sedan' || kind === 'coupe') rake(-cabD / 2, glassH * 0.95, clean);
   else if (kind !== 'pickup') box(W - 0.23, glassH - 0.03, 0.07, 0, belt + glassH / 2, cabZ - cabD / 2 - 0.03, glassM);
 
   if (kind === 'pickup') {
@@ -1698,9 +1955,13 @@ export function carBody(parent, x, y, z, rot = 0, seed = 1, {
     [1, -1].forEach(sx => box(0.05, 0.05, cabD * 0.8, sx * (W / 2 - 0.22), roofY + 0.05, cabZ - 0.1, trimM));
   }
 
-  // ---- wheels: tyre, and a hub you can see is a hub ----
+  // ---- wheels: tyre, and a hub you can see is a hub, turning inside a
+  // wheel well. Without the well the tyre is a disc glued to a slab. ----
+  const wellM = flat(0x0c0c0c, { rough: 1 });
   [[1, 1], [-1, 1], [1, -1], [-1, -1]].forEach(([sx, sz]) => {
     const wx = sx * (W / 2 - 0.085), wz = sz * L * 0.30;
+    const well = put(new THREE.Mesh(CYL(WHEEL_R + 0.07, WHEEL_R + 0.07, 0.02, 14), wellM));
+    well.rotation.z = Math.PI / 2; well.position.set(sx * (W / 2 + 0.004), WHEEL_R + 0.03, wz);
     const t = put(new THREE.Mesh(CYL(WHEEL_R, WHEEL_R, 0.21, 14), flat(0x131313, { rough: .96 })));
     t.rotation.z = Math.PI / 2; t.position.set(wx, WHEEL_R, wz);
     const hub = put(new THREE.Mesh(CYL(0.185, 0.185, 0.23, 10), chrome));

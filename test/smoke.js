@@ -25,7 +25,7 @@ async function main() {
   const menuscene = await import('../src/chapters/menuscene.js');
   const { TAPES } = await import('../src/content/tapes.js');
   const docs = await import('../src/content/docs.js');
-  const { scares, MANIFEST } = await import('../src/core/scares.js');
+  const { scares, MANIFEST, EXPECT } = await import('../src/core/scares.js');
   const { UI } = await import('../src/core/ui.js');
   const { Phone } = await import('../src/core/phone.js');
   UI.init();          // binds to the DOM stub so chapters can call it
@@ -108,7 +108,7 @@ async function main() {
   // ---------------------------------------------------------- scares
   step('scare manifest', () => {
     const a = scares.audit();
-    if (!a.ok) throw new Error(`manifest: ${JSON.stringify(a)} — expected 19 total / 3 false / 3 contact`);
+    if (!a.ok) throw new Error(`manifest: ${JSON.stringify(a)}, expected ${EXPECT.total} total / ${EXPECT.falses} false / ${EXPECT.contacts} contact`);
     report('scare manifest', a);
     const ids = MANIFEST.map(m => m.id);
     if (new Set(ids).size !== ids.length) throw new Error('duplicate scare id');
